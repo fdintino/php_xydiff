@@ -170,6 +170,7 @@ const char * get_libxml_dom_string(php_libxml_node_object *doc, xmlChar* &mem, i
 	xmlDocDumpFormatMemory(docp, &mem, &size, format);		
 }
 
+// @todo Clean up potential memory leaks in this function
 DOMDocument * string_to_xid_domdocument(xydiff_object *intern, const char *string)
 {
 	DOMDocument *theDocument;
@@ -204,10 +205,7 @@ DOMDocument * string_to_xid_domdocument(xydiff_object *intern, const char *strin
 	} catch (...) {
 		std::cout << "Unexpected exception" << std::endl;
 	}
-	//xiddoc = XID_DOMDocument::copy((const XID_DOMDocument *) theDocument, 0);
-	//intern->xiddoc1 = xiddoc;
 	return theDocument;
-	//return intern->xiddoc1;
 }
 
 dom_doc_propsptr dom_get_doc_props(php_libxml_node_object *node)
@@ -240,7 +238,6 @@ ZEND_METHOD(xydiff, loadXML)
 	xmlDocPtr doc1 = NULL;
 	xydiff_object *intern;
 	xmlNode *node1p = NULL;
-	xmlDoc *doc2p = NULL;
 	
 	php_libxml_node_object *xml_object1;
 	
@@ -251,8 +248,6 @@ ZEND_METHOD(xydiff, loadXML)
 	intern = (xydiff_object *)zend_object_store_get_object(id TSRMLS_CC);
 	if (intern != NULL) {
 		xml_object1 = (php_libxml_node_object *)zend_object_store_get_object(doc1p TSRMLS_CC);
-		xmlNodePtr node1 = NULL;
-		//	xmlDocPtr doc1 = NULL;
 		node1p = php_libxml_import_node(doc1p TSRMLS_CC);
 		if (node1p) {
 			doc1 = node1p->doc;
@@ -286,7 +281,6 @@ ZEND_METHOD(xydiff, diffXML)
 	intern = (xydiff_object *)zend_object_store_get_object(id TSRMLS_CC);
 	if (intern != NULL) {
 		xml_object2 = (php_libxml_node_object *)zend_object_store_get_object(doc2p TSRMLS_CC);
-		xmlNodePtr node2 = NULL;
 		node2p = php_libxml_import_node(doc2p TSRMLS_CC);
 		if (node2p) {
 			doc2 = node2p->doc;
@@ -324,27 +318,21 @@ ZEND_METHOD(xydiff, diffXML)
 		if (theSerializer->getDomConfig()->canSetParameter(XMLUni::fgDOMWRTFormatPrettyPrint, true))
 			theSerializer->getDomConfig()->setParameter(XMLUni::fgDOMWRTFormatPrettyPrint, true);
 		if (theSerializer->getDomConfig()->canSetParameter(XMLUni::fgDOMXMLDeclaration, true)) 
-		    theSerializer->getDomConfig()->setParameter(XMLUni::fgDOMXMLDeclaration, true);
-		// do the serialization through DOMLSSerializer::write();
-		// If output file is "stdout," send output to stdout and not a file.
-		
-		
+		    theSerializer->getDomConfig()->setParameter(XMLUni::fgDOMXMLDeclaration, true);		
 		theSerializer->write((DOMDocument*)deltaDoc, theOutput);
 	}
 	catch (const XMLException& toCatch) {
 		char* message = XMLString::transcode(toCatch.getMessage());
-		std::cout << "Exception message is: \n"
-		<< message << "\n";
+		std::cout << "Exception message is: \n" << message << std::endl;
 		XMLString::release(&message);
 	}
 	catch (const DOMException& toCatch) {
 		char* message = XMLString::transcode(toCatch.msg);
-		std::cout << "Exception message is: \n"
-		<< message << "\n";
+		std::cout << "Exception message is: \n" << message << std::endl;
 		XMLString::release(&message);
 	}
 	catch (...) {
-		std::cout << "Unexpected Exception \n" ;
+		std::cout << "Unexpected Exception" << std::endl;
 	}
 
 	char* theXMLString_Encoded = (char*) ((MemBufFormatTarget*)myFormatTarget)->getRawBuffer();
