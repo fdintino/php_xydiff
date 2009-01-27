@@ -37,7 +37,7 @@ extern zend_module_entry xydiff_module_entry;
 #endif
 
 
-#define DebugBreak() if(AmIBeingDebugged()) {__asm__("int $3\n" : : );}
+
 
 #include "Tools.hpp"
 #include "include/XID_map.hpp"
@@ -58,6 +58,8 @@ extern zend_module_entry xydiff_module_entry;
 
 #include "debug.h"
 
+#define DebugBreak() if(AmIBeingDebugged()) {__asm__("int $3\n" : : );}
+
 #define XYDIFF_CLASS_NAME "XyDiff"
 
 typedef struct _xydiff_object {
@@ -69,7 +71,6 @@ typedef struct _xydiff_object {
 	XID_DOMDocument *xiddoc2;
 	php_libxml_node_object *doc1;
 	php_libxml_node_object *doc2;
-//	HashTable *prop_handler;
 	zend_object_handle handle;
 } xydiff_object;
 
