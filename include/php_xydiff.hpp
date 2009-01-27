@@ -82,13 +82,6 @@ PHP_RINIT_FUNCTION(xydiff);
 PHP_RSHUTDOWN_FUNCTION(xydiff);
 PHP_MINFO_FUNCTION(xydiff);
 
-char *hexencode(char *in, int in_length);
-PHP_FUNCTION(hexencode);
-
-PHP_FUNCTION(colors);
-PHP_FUNCTION(array_strncmp);
-PHP_FUNCTION(check_type);
-
 
 static void xydiff_object_dtor(void *object);
 static void xydiff_object_clone(void *object, void **object_clone TSRMLS_DC);
