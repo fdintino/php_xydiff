@@ -91,7 +91,7 @@ zend_object_value xydiff_object_create(zend_class_entry *class_type TSRMLS_DC);
 dom_doc_propsptr dom_get_doc_props(php_libxml_node_object *node);
 xercesc::DOMDocument * string_to_xerces_domdocument(const char *string);
 const char * get_libxml_dom_string(php_libxml_node_object *doc, xmlChar* &mem, int &size);
-
+xmlDocPtr string_to_dom_document(char *source);
 ZEND_METHOD(xydiff, diffXML);
 ZEND_METHOD(xydiff, loadXML);
 ZEND_METHOD(xydiff, __construct);

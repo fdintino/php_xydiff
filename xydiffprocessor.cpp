@@ -37,6 +37,8 @@ extern "C" {
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/sysctl.h>
+//#include <stdio.h>
+//#include <string.h>
 
 
 #include "xercesc/framework/MemBufInputSource.hpp"
@@ -167,7 +169,7 @@ const char * get_libxml_dom_string(php_libxml_node_object *doc, xmlChar* &mem, i
 	xmlDocPtr docp = (xmlDocPtr) doc->document->ptr;
 	doc_props = dom_get_doc_props(doc);
 	format = doc_props->formatoutput;
-	xmlDocDumpFormatMemory(docp, &mem, &size, format);		
+	xmlDocDumpFormatMemory(docp, &mem, &size, format);
 }
 
 // @todo Clean up potential memory leaks in this function
@@ -337,8 +339,14 @@ ZEND_METHOD(xydiff, diffXML)
 
 	char* theXMLString_Encoded = (char*) ((MemBufFormatTarget*)myFormatTarget)->getRawBuffer();
 	int xmlLen = (int) ((MemBufFormatTarget*)myFormatTarget)->getLen();
-	RETVAL_STRINGL(theXMLString_Encoded, xmlLen, 1);
-
+	//char xmlString[xmlLen+1];
+	char *xmlString = (char *) emalloc(xmlLen+1);
+	strncpy (xmlString, theXMLString_Encoded, xmlLen);
+	xmlString[xmlLen] = '\0';
+	
+	// string_to_dom_document(xmlString);
+	RETVAL_STRINGL(xmlString, xmlLen, 1);
+	efree(xmlString);
 	// Free memory
 	if (size1) {
 		xmlFree(mem1);
@@ -351,6 +359,12 @@ ZEND_METHOD(xydiff, diffXML)
 	theSerializer->release();
 }
 
+xmlDocPtr string_to_dom_document(char *source)
+{
+	xmlDoc *xDoc = NULL;
+	//xmlDoc *xDoc = dom_document_parser(NULL, 0, source, 0);
+	return xDoc;
+}
 
 ZEND_METHOD(xydiff, __construct)
 {
