@@ -48,8 +48,22 @@ extern zend_module_entry xydiff_module_entry;
 #include "include/XID_DOMDocument.hpp"
 #include "DeltaException.hpp"
 
+
 // For libxml
-#include "dom/xml_common.h"
+extern "C" {
+	#include "ext/libxml/php_libxml.h"
+	#include "ext/dom/xml_common.h"
+
+		
+//	#include <libxml/parser.h>
+//	#include <libxml/parserInternals.h>
+//	#include <libxml/tree.h>
+//	#include <libxml/uri.h>
+//	#include <libxml/xmlerror.h>
+//	#include <libxml/xinclude.h>
+//	#include <libxml/hash.h>
+//	#include <libxml/c14n.h>	
+}
 
 #include "xercesc/util/PlatformUtils.hpp"
 #include "xercesc/dom/DOMErrorHandler.hpp"
@@ -91,7 +105,7 @@ zend_object_value xydiff_object_create(zend_class_entry *class_type TSRMLS_DC);
 dom_doc_propsptr dom_get_doc_props(php_libxml_node_object *node);
 xercesc::DOMDocument * string_to_xerces_domdocument(const char *string);
 const char * get_libxml_dom_string(php_libxml_node_object *doc, xmlChar* &mem, int &size);
-xmlDocPtr string_to_dom_document(char *source);
+static xmlDocPtr string_to_dom_document(const char *source);
 ZEND_METHOD(xydiff, diffXML);
 ZEND_METHOD(xydiff, loadXML);
 ZEND_METHOD(xydiff, __construct);

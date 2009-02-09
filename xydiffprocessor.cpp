@@ -26,7 +26,7 @@ extern "C" {
 	#include "php.h"
 	#include "php_ini.h"
 	#include "ext/standard/info.h"
-	#include "ext/libxml/php_libxml.h"
+
 }
 #include "include/php_xydiff.hpp"
 
@@ -305,6 +305,7 @@ ZEND_METHOD(xydiff, diffXML)
 	
 	intern->xiddoc1 = (XID_DOMDocument *) string_to_xid_domdocument(intern, (const char *)mem1 );
 	intern->xiddoc2 = (XID_DOMDocument *) string_to_xid_domdocument(intern, (const char *)mem2 );
+	DebugBreak();
 	DOMDocument *deltaDoc = XyDelta::XyDiff(intern->xiddoc1, "doc1", intern->xiddoc2, "doc2", NULL);
 
 	DOMImplementation *impl = DOMImplementationRegistry::getDOMImplementation(XMLString::transcode("LS"));
@@ -339,13 +340,21 @@ ZEND_METHOD(xydiff, diffXML)
 
 	char* theXMLString_Encoded = (char*) ((MemBufFormatTarget*)myFormatTarget)->getRawBuffer();
 	int xmlLen = (int) ((MemBufFormatTarget*)myFormatTarget)->getLen();
-	//char xmlString[xmlLen+1];
-	char *xmlString = (char *) emalloc(xmlLen+1);
+
+	char *xmlString = (char *) emalloc(sizeof(char)*xmlLen+1);
 	strncpy (xmlString, theXMLString_Encoded, xmlLen);
 	xmlString[xmlLen] = '\0';
+
 	
-	// string_to_dom_document(xmlString);
-	RETVAL_STRINGL(xmlString, xmlLen, 1);
+	xmlDoc *newdoc;
+	newdoc = string_to_dom_document(xmlString);
+	if (!newdoc) {
+		RETURN_FALSE;
+	}
+	zval *rv;
+	int ret;
+	DOM_RET_OBJ(rv, (xmlNodePtr) newdoc, &ret, NULL);
+
 	efree(xmlString);
 	// Free memory
 	if (size1) {
@@ -359,11 +368,20 @@ ZEND_METHOD(xydiff, diffXML)
 	theSerializer->release();
 }
 
-xmlDocPtr string_to_dom_document(char *source)
+static xmlDocPtr string_to_dom_document(const char *source)
 {
-	xmlDoc *xDoc = NULL;
-	//xmlDoc *xDoc = dom_document_parser(NULL, 0, source, 0);
-	return xDoc;
+	xmlDocPtr ret;
+	xmlParserCtxtPtr ctxt = NULL;
+	
+	ctxt = xmlCreateDocParserCtxt((xmlChar *)source);
+	if (ctxt == NULL) {
+		return(NULL);
+	}
+	xmlParseDocument(ctxt);
+	if (ctxt->wellFormed) {
+		ret = ctxt->myDoc;
+	}
+	return ret;
 }
 
 ZEND_METHOD(xydiff, __construct)

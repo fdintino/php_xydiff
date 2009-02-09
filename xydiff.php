@@ -29,7 +29,8 @@ function test_xydiff() {
 	$dom2->load("tests/example2.xml");
 	$xydiff = new XyDiff();
 	$xydiff->loadXML($dom1);
-	echo $xydiff->diffXML($dom2);
+	$diffed = $xydiff->diffXML($dom2);
+	echo $diffed->saveXML();
 //	$xydiff->echoDelta("example1.xml", "example2.xml");
 //	echo($xydiff->get_libxml_dom_string());
 }
