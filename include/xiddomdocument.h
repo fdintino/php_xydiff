@@ -26,7 +26,6 @@ void register_xiddomdocument(TSRMLS_D);
 void xiddomdocument_sync_with_libxml(php_libxml_node_object *libxml_object);
 XID_DOMDocument * get_xiddomdocument(php_libxml_node_object *object);
 
-ZEND_METHOD(xiddomdocument, loadXML);
 ZEND_METHOD(xiddomdocument, __construct);
 ZEND_METHOD(xiddomdocument, __destruct);
 #endif

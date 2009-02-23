@@ -75,25 +75,11 @@ void register_xydiff()
 	INIT_CLASS_ENTRY(ce, XYDIFF_CLASS_NAME, xydiff_methods);
 	ce.create_object = xydiff_object_create;
 	xydiff_class_entry = zend_register_internal_class(&ce TSRMLS_CC);
-	zend_class_entry **pce;
-//	zend_class_entry *pce;
-	if (zend_lookup_class("DOMDocument", strlen("DOMDocument"), &pce TSRMLS_CC) == FAILURE) {
-		
-//	if (zend_hash_find(CG(class_table), "domdocument", sizeof("DOMDocument"), (void **) &pce) == FAILURE) {
-//		ce_SimpleXMLElement  = NULL;
-//		ce_SimpleXMLIterator = NULL;
-//		return SUCCESS; /* SimpleXML must be initialized before */
-		printf("Extending simplexmlelement unsuccessful!\n");
-	} else {
-		printf("Successfully extended simplexmlelement\n");
-	}
-	//ce_SimpleXMLElement = *pce;
 }
 
 static void xydiff_object_dtor(void *object TSRMLS_DC)
 {
 	xydiff_object *intern = (xydiff_object *)object;
-	int retcount;
 	
 	zend_object_std_dtor(&intern->std TSRMLS_CC);
 	if (intern->xiddoc1) {
@@ -102,48 +88,7 @@ static void xydiff_object_dtor(void *object TSRMLS_DC)
 	if (intern->xiddoc2) {
 		intern->xiddoc2->release();
 	}
-/*
-	if (intern->doc1p != NULL && ((php_libxml_node_ptr *)intern->doc1p)->node != NULL) {
-		if (((xmlNodePtr) ((php_libxml_node_ptr *)intern->doc1p)->node)->type != XML_DOCUMENT_NODE && ((xmlNodePtr) ((php_libxml_node_ptr *)intern->doc1p)->node)->type != XML_HTML_DOCUMENT_NODE) {
-			php_libxml_node_decrement_resource((php_libxml_node_object *) intern TSRMLS_CC);
-		} else {
-			php_libxml_decrement_node_ptr((php_libxml_node_object *) intern TSRMLS_CC);
-			retcount = php_libxml_decrement_doc_ref((php_libxml_node_object *)intern TSRMLS_CC);
-		}
-		intern->doc1p = NULL;
-	}
-	if (intern->doc2p != NULL && ((php_libxml_node_ptr *)intern->doc2p)->node != NULL) {
-		if (((xmlNodePtr) ((php_libxml_node_ptr *)intern->doc2p)->node)->type != XML_DOCUMENT_NODE && ((xmlNodePtr) ((php_libxml_node_ptr *)intern->doc2p)->node)->type != XML_HTML_DOCUMENT_NODE) {
-			php_libxml_node_decrement_resource((php_libxml_node_object *) intern TSRMLS_CC);
-		} else {
-			php_libxml_decrement_node_ptr((php_libxml_node_object *) intern TSRMLS_CC);
-			retcount = php_libxml_decrement_doc_ref((php_libxml_node_object *)intern TSRMLS_CC);
-		}
-		intern->doc2p = NULL;
-	}
-*/
-	if (intern->doc1 != NULL) {
-		printf("refcount address = %x", intern->doc1->node);
-		if (intern->doc1->node == NULL) {
-			efree(intern->doc1->node);
-		}
-		int refcount = php_libxml_decrement_node_ptr((php_libxml_node_object *) intern->doc1 TSRMLS_CC);
-		printf("refcount for %x = %d\n", refcount, intern->doc1->node);
-		php_libxml_decrement_doc_ref((php_libxml_node_object *) intern->doc1 TSRMLS_CC);
-		efree(intern->doc1);
-	}
-	
-	intern->doc1 = NULL;
-	if (intern->doc2 != NULL) {
-		php_libxml_decrement_node_ptr((php_libxml_node_object *) intern->doc2 TSRMLS_CC);
-		php_libxml_decrement_doc_ref((php_libxml_node_object *) intern->doc2 TSRMLS_CC);
-		efree(intern->doc2);
-	}
-	if (intern->libxml_delta_doc != NULL) {
-//		xmlFree(intern->libxml_delta_doc);
-	}
-	
-	intern->doc2 = NULL;
+
 	efree(object);
 }
 
@@ -179,8 +124,7 @@ static void xydiff_object_clone(void *object, void **object_clone TSRMLS_DC)
 	xydiff_object **intern_clone = (xydiff_object **) object_clone;
 
 	*intern_clone = (xydiff_object *) emalloc(sizeof(xydiff_object));
-	(*intern_clone)->doc1 = intern->doc1;
-	(*intern_clone)->doc2 = intern->doc2;
+
 	(*intern_clone)->xiddoc1 = XID_DOMDocument::copy(intern->xiddoc1, 1);
 	(*intern_clone)->xiddoc2 = XID_DOMDocument::copy(intern->xiddoc2, 1);
 }
@@ -356,55 +300,29 @@ ZEND_METHOD(xydiff, __construct)
 	intern = (xydiff_object *)zend_object_store_get_object(id TSRMLS_CC);
 	
 	if (intern != NULL) {
-		intern->doc1 = NULL;
-		intern->doc2 = NULL;
-		//if (php_libxml_increment_doc_ref((php_libxml_node_object *)intern->doc1p, doc1p TSRMLS_CC) == -1) {
-		//	RETURN_FALSE;
-		//}
-	//	php_libxml_increment_node_ptr((php_libxml_node_object *)intern->doc1p, (xmlNodePtr)doc1p, (void *)intern TSRMLS_CC);
-	}
-	
+		intern->xiddoc1 = NULL;
+		intern->xiddoc2 = NULL;
+	}	
 }
 
 ZEND_METHOD(xydiff, loadXML)
 {
-	zval *id, *doc1p = NULL;
-	xmlDocPtr doc1 = NULL;
+	zval *id, *docp = NULL;
 	xydiff_object *intern;
-	xmlNode *node1p = NULL;
 	
-	php_libxml_node_object *xml_object1;
+	php_libxml_node_object *xml_object;
 	
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oo", &id, xydiff_class_entry, &doc1p) == FAILURE) {
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oo", &id, xydiff_class_entry, &docp) == FAILURE) {
 		RETURN_FALSE;
 	}
 	
 	intern = (xydiff_object *)zend_object_store_get_object(id TSRMLS_CC);
-	if (intern != NULL) {
-		dom_object *domobj = (dom_object *) zend_object_store_get_object(doc1p TSRMLS_CC);
-		//xiddomdocument_sync_with_libxml(domobj);
-		//intern->xiddoc1 = (XID_DOMDocument *) domobj->ptr;
-		
-		xml_object1 = (php_libxml_node_object *) domobj;
-		intern->xiddoc1 = libxml_domdocument_to_xid_domdocument(xml_object1);
-//		
-//		node1p = php_libxml_import_node(doc1p TSRMLS_CC);
-//		if (node1p) {
-//			doc1 = node1p->doc;
-//		}
-//		if (doc1 == NULL) {
-//			php_error_docref(NULL TSRMLS_CC, E_WARNING, "Invalid Document");
-//			return;
-//		}
-//		
-//		intern->doc1 = (php_libxml_node_object*) emalloc(sizeof(php_libxml_node_object));
-//		memset(intern->doc1, 0, sizeof(php_libxml_node_object));
-//		intern->doc1->document = xml_object1->document;
-//		
-//		php_libxml_increment_doc_ref(intern->doc1, doc1);
+	if (intern != NULL) {	
+		xml_object = (php_libxml_node_object *) zend_object_store_get_object(docp TSRMLS_CC);
+		xiddomdocument_sync_with_libxml(xml_object);
+		intern->xiddoc1 = get_xiddomdocument(xml_object);
 	}
 }
-void dom_write_property(zval *object, zval *member, zval *value TSRMLS_DC);
 
 ZEND_METHOD(xydiff, diffXML)
 {
@@ -443,13 +361,6 @@ ZEND_METHOD(xydiff, diffXML)
 			php_error_docref(NULL TSRMLS_CC, E_WARNING, "Invalid Document");
 			return;
 		}
-
-//		intern->doc2 = (php_libxml_node_object*) emalloc(sizeof(php_libxml_node_object));
-//		memset(intern->doc2, 0, sizeof(php_libxml_node_object));
-//		intern->doc2->document = xml_object->document;
-//		xmlNodePtr testNode = (xmlNodePtr) nodep;
-//		php_libxml_increment_doc_ref(intern->doc2, doc);
-//		php_libxml_increment_node_ptr(xml_object, (xmlNodePtr)nodep, NULL TSRMLS_CC);
 
 		DOMDocument *deltaDoc = XyDelta::XyDiff(intern->xiddoc1, "doc1", (XID_DOMDocument *) intern->xiddoc2, "doc2", NULL);
 

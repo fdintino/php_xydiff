@@ -61,23 +61,14 @@ extern "C" {
 XERCES_CPP_NAMESPACE_USE
 
 static zend_class_entry *xiddomdocument_class_entry;
-static HashTable xiddomdoc_prop_info;
 
 static zend_function_entry xiddomdocument_methods[] = {
 	ZEND_ME(xiddomdocument, __construct, NULL, ZEND_ACC_PUBLIC)
 	ZEND_ME(xiddomdocument, __destruct, NULL, ZEND_ACC_PUBLIC)
-	ZEND_ME(xiddomdocument, loadXML, NULL, ZEND_ACC_PUBLIC)
-//ZEND_ME(xiddomdocument, diffXML, NULL, ZEND_ACC_PUBLIC)
-{ NULL, NULL, NULL }
+	{ NULL, NULL, NULL }
 };
 
 static zend_object_handlers xiddomdocument_object_handlers;
-static void xiddomdoc_prop_info_destroy(void *pi_hash);
-static void xiddomdoc_prop_info_destroy(void *pi_hash)
-{
-//	HashTable *pih = (HashTable *) pi_hash;
-//	zend_hash_destroy(pih);
-}
 
 zend_object_value xiddomdocument_object_create(zend_class_entry *class_type TSRMLS_DC)
 {
@@ -90,9 +81,6 @@ zend_object_value xiddomdocument_object_create(zend_class_entry *class_type TSRM
 	intern->ptr = NULL;
 	intern->prop_handler = NULL;
 	intern->document = NULL;
-//	intern->pce_ptr = NULL;
-//	intern->doc = NULL;
-//	intern->xiddoc = NULL;
 	
 	zend_class_entry *base_class;
 	base_class = class_type;
@@ -128,9 +116,6 @@ static void xiddomdocument_object_dtor(void *object TSRMLS_DC)
 	}
 	int refcount = php_libxml_decrement_node_ptr((php_libxml_node_object *)intern TSRMLS_CC);
 	php_libxml_decrement_doc_ref((php_libxml_node_object *)intern TSRMLS_CC);
-	
-
-	
 	efree(object);
 }
 
@@ -147,7 +132,6 @@ void register_xiddomdocument(TSRMLS_DC)
 	INIT_CLASS_ENTRY(ce, "XIDDOMDocument", xiddomdocument_methods);
 	ce.create_object = xiddomdocument_object_create;
 	xiddomdocument_class_entry = zend_register_internal_class_ex(&ce TSRMLS_CC, pce[0], NULL TSRMLS_CC);
-	zend_hash_init_ex(&xiddomdoc_prop_info, 50, NULL, (dtor_func_t) xiddomdoc_prop_info_destroy, 1, 0);	
 }
 
 static void xiddomdocument_object_clone(void *object, void **object_clone TSRMLS_DC)
@@ -163,7 +147,7 @@ void xiddomdocument_sync_with_libxml(php_libxml_node_object *libxml_object)
 {
 	XID_DOMDocument *xiddoc = libxml_domdocument_to_xid_domdocument(libxml_object);
 	uintptr_t xiddocptr = (uintptr_t) xiddoc;
-	zend_hash_add(libxml_object->properties, "xiddoc", sizeof("xiddoc"), &xiddocptr, sizeof(uintptr_t), NULL);		
+	zend_hash_update(libxml_object->properties, "xiddoc", sizeof("xiddoc"), &xiddocptr, sizeof(uintptr_t), NULL);		
 }
 
 XID_DOMDocument * get_xiddomdocument(php_libxml_node_object *object)
@@ -174,9 +158,6 @@ XID_DOMDocument * get_xiddomdocument(php_libxml_node_object *object)
 		return (XID_DOMDocument *) xiddocptr[0];
 	}
 }
-
-ZEND_METHOD(xiddomdocument, loadXML)
-{ }
 
 void propDestructor(void *pElement);
 void propDestructor(void *pElement)
