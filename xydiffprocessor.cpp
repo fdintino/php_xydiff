@@ -284,19 +284,11 @@ ZEND_METHOD(xydiff, __construct)
 {
 	zval *id;
 	xydiff_object *intern;
-	xmlDoc *doc1p = NULL;
-	xmlDoc *doc2p = NULL;
-	const xmlChar *version = NULL;	
 	
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, xydiff_class_entry) == FAILURE) {
 		RETURN_FALSE;
 	}
 	
-	doc1p = xmlNewDoc(version);
-	if (!doc1p) {
-		// Throw exception
-		RETURN_FALSE;
-	}
 	intern = (xydiff_object *)zend_object_store_get_object(id TSRMLS_CC);
 	
 	if (intern != NULL) {
