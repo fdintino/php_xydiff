@@ -47,22 +47,13 @@ extern zend_module_entry xydiff_module_entry;
 #include "include/XyLatinStr.hpp"
 #include "include/XID_DOMDocument.hpp"
 #include "DeltaException.hpp"
+#include "zend_exceptions.h"
 
-
+#include <cstring>
 // For libxml
 extern "C" {
 	#include "ext/libxml/php_libxml.h"
 	#include "ext/dom/xml_common.h"
-
-		
-//	#include <libxml/parser.h>
-//	#include <libxml/parserInternals.h>
-//	#include <libxml/tree.h>
-//	#include <libxml/uri.h>
-//	#include <libxml/xmlerror.h>
-//	#include <libxml/xinclude.h>
-//	#include <libxml/hash.h>
-//	#include <libxml/c14n.h>	
 }
 
 #include "xercesc/util/PlatformUtils.hpp"
@@ -85,10 +76,13 @@ typedef struct _xydiff_object {
 	XID_DOMDocument *xiddoc2;
 	php_libxml_node_object *doc1;
 	php_libxml_node_object *doc2;
+	xmlDocPtr libxml_delta_doc;
 	zend_object_handle handle;
 } xydiff_object;
 
 static bool AmIBeingDebugged(void);
+
+
 
 PHP_MINIT_FUNCTION(xydiff);
 PHP_MSHUTDOWN_FUNCTION(xydiff);
@@ -97,19 +91,16 @@ PHP_RSHUTDOWN_FUNCTION(xydiff);
 PHP_MINFO_FUNCTION(xydiff);
 
 
-static void xydiff_object_dtor(void *object);
-static void xydiff_object_clone(void *object, void **object_clone TSRMLS_DC);
-zend_object_value xydiff_object_create(zend_class_entry *class_type TSRMLS_DC);
 
 
 dom_doc_propsptr dom_get_doc_props(php_libxml_node_object *node);
-xercesc::DOMDocument * string_to_xerces_domdocument(const char *string);
 const char * get_libxml_dom_string(php_libxml_node_object *doc, xmlChar* &mem, int &size);
 static xmlDocPtr string_to_dom_document(const char *source);
+char * xiddomdocument_to_string(xercesc::DOMDocument *doc);
 ZEND_METHOD(xydiff, diffXML);
 ZEND_METHOD(xydiff, loadXML);
 ZEND_METHOD(xydiff, __construct);
-void register_xydiff(TSRMLS_D);
+
 
 /* 
   	Declare any global variables you may need between the BEGIN

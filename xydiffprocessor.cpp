@@ -37,9 +37,6 @@ extern "C" {
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/sysctl.h>
-//#include <stdio.h>
-//#include <string.h>
-
 
 #include "xercesc/framework/MemBufInputSource.hpp"
 #include "xercesc/dom/DOMImplementation.hpp"
@@ -57,6 +54,7 @@ extern "C" {
 #include "xercesc/dom/DOMLocator.hpp"
 
 #include "include/xydiffprocessor.h"
+#include "include/xiddomdocument.h"
 
 XERCES_CPP_NAMESPACE_USE
 
@@ -77,6 +75,19 @@ void register_xydiff()
 	INIT_CLASS_ENTRY(ce, XYDIFF_CLASS_NAME, xydiff_methods);
 	ce.create_object = xydiff_object_create;
 	xydiff_class_entry = zend_register_internal_class(&ce TSRMLS_CC);
+	zend_class_entry **pce;
+//	zend_class_entry *pce;
+	if (zend_lookup_class("DOMDocument", strlen("DOMDocument"), &pce TSRMLS_CC) == FAILURE) {
+		
+//	if (zend_hash_find(CG(class_table), "domdocument", sizeof("DOMDocument"), (void **) &pce) == FAILURE) {
+//		ce_SimpleXMLElement  = NULL;
+//		ce_SimpleXMLIterator = NULL;
+//		return SUCCESS; /* SimpleXML must be initialized before */
+		printf("Extending simplexmlelement unsuccessful!\n");
+	} else {
+		printf("Successfully extended simplexmlelement\n");
+	}
+	//ce_SimpleXMLElement = *pce;
 }
 
 static void xydiff_object_dtor(void *object TSRMLS_DC)
@@ -111,14 +122,28 @@ static void xydiff_object_dtor(void *object TSRMLS_DC)
 		intern->doc2p = NULL;
 	}
 */
-	if (intern->doc1) {
+	if (intern->doc1 != NULL) {
+		printf("refcount address = %x", intern->doc1->node);
+		if (intern->doc1->node == NULL) {
+			efree(intern->doc1->node);
+		}
+		int refcount = php_libxml_decrement_node_ptr((php_libxml_node_object *) intern->doc1 TSRMLS_CC);
+		printf("refcount for %x = %d\n", refcount, intern->doc1->node);
 		php_libxml_decrement_doc_ref((php_libxml_node_object *) intern->doc1 TSRMLS_CC);
 		efree(intern->doc1);
 	}
-	if (intern->doc2) {
+	
+	intern->doc1 = NULL;
+	if (intern->doc2 != NULL) {
+		php_libxml_decrement_node_ptr((php_libxml_node_object *) intern->doc2 TSRMLS_CC);
 		php_libxml_decrement_doc_ref((php_libxml_node_object *) intern->doc2 TSRMLS_CC);
 		efree(intern->doc2);
 	}
+	if (intern->libxml_delta_doc != NULL) {
+//		xmlFree(intern->libxml_delta_doc);
+	}
+	
+	intern->doc2 = NULL;
 	efree(object);
 }
 
@@ -170,44 +195,7 @@ const char * get_libxml_dom_string(php_libxml_node_object *doc, xmlChar* &mem, i
 	doc_props = dom_get_doc_props(doc);
 	format = doc_props->formatoutput;
 	xmlDocDumpFormatMemory(docp, &mem, &size, format);
-}
-
-// @todo Clean up potential memory leaks in this function
-DOMDocument * string_to_xid_domdocument(xydiff_object *intern, const char *string)
-{
-	DOMDocument *theDocument;
-	try {
-		XMLPlatformUtils::Initialize();
-	}
-	catch(const XMLException& toCatch) {
-		std::cerr << "Error during Xerces-c Initialization.\n"
-		<< "  Exception message:" << XyLatinStr(toCatch.getMessage()).localForm() << std::endl;
-		exit(-1);
-	}
-
-	static const XMLCh gLS[] = { chLatin_L, chLatin_S, chNull };
-	DOMImplementation *impl = DOMImplementationRegistry::getDOMImplementation(gLS);
-	DOMLSParser *theParser = ((DOMImplementationLS*)impl)->createLSParser(DOMImplementationLS::MODE_SYNCHRONOUS, 0);
-	DOMErrorHandler * handler = new xydeltaParseHandler();
-	XMLCh *myWideString = XMLString::transcode(string);
-	MemBufInputSource *memIS = new MemBufInputSource((const XMLByte *)string, strlen(string), "test", false);
-	Wrapper4InputSource *wrapper = new Wrapper4InputSource(memIS, false);
-	try {
-		theParser->getDomConfig()->setParameter(XMLUni::fgDOMErrorHandler, handler);
-		theDocument = theParser->parse((DOMLSInput *) wrapper);
-	} catch (const XMLException& e) {
-		std::cerr << "XMLException: An error occured during parsing\n   Message: "
-		<< XyLatinStr(e.getMessage()).localForm() << std::endl;
-		throw VersionManagerException("XML Exception", "parseDOM_Document", "See previous exception messages for more details");
-	} catch (const DOMException& toCatch) {
-		char* message = XMLString::transcode(toCatch.msg);
-		std::cout << "Exception message is: " << std::endl
-		<< message << "\n";
-		XMLString::release(&message);
-	} catch (...) {
-		std::cout << "Unexpected exception" << std::endl;
-	}
-	return theDocument;
+	efree(doc_props);
 }
 
 dom_doc_propsptr dom_get_doc_props(php_libxml_node_object *node)
@@ -234,154 +222,118 @@ dom_doc_propsptr dom_get_doc_props(php_libxml_node_object *node)
 	}
 }
 
-ZEND_METHOD(xydiff, loadXML)
+
+
+static xmlDocPtr xid_domdocument_to_libxml_domdocument(XID_DOMDocument *xiddoc)
 {
-	zval *id, *doc1p = NULL;
-	xmlDocPtr doc1 = NULL;
-	xydiff_object *intern;
-	xmlNode *node1p = NULL;
-	
-	php_libxml_node_object *xml_object1;
-	
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oo", &id, xydiff_class_entry, &doc1p) == FAILURE) {
-		RETURN_FALSE;
-	}
-	
-	intern = (xydiff_object *)zend_object_store_get_object(id TSRMLS_CC);
-	if (intern != NULL) {
-		xml_object1 = (php_libxml_node_object *)zend_object_store_get_object(doc1p TSRMLS_CC);
-		node1p = php_libxml_import_node(doc1p TSRMLS_CC);
-		if (node1p) {
-			doc1 = node1p->doc;
-		}
-		if (doc1 == NULL) {
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "Invalid Document");
-			return;
-		}
-		
-		intern->doc1 = (php_libxml_node_object*) emalloc(sizeof(php_libxml_node_object));
-		memset(intern->doc1, 0, sizeof(php_libxml_node_object));
-		intern->doc1->document = xml_object1->document;
-		
-		php_libxml_increment_doc_ref(intern->doc1, doc1);	
-	}
-}
-
-ZEND_METHOD(xydiff, diffXML)
-{
-	zval *id, *doc2p = NULL;
-	xmlDocPtr doc2 = NULL;
-	xydiff_object *intern;
-	xmlNode *node2p = NULL;
-
-	php_libxml_node_object *xml_object2;
-	
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oo", &id, xydiff_class_entry, &doc2p) == FAILURE) {
-		RETURN_FALSE;
-	}
-	
-	intern = (xydiff_object *)zend_object_store_get_object(id TSRMLS_CC);
-	if (intern != NULL) {
-		xml_object2 = (php_libxml_node_object *)zend_object_store_get_object(doc2p TSRMLS_CC);
-		node2p = php_libxml_import_node(doc2p TSRMLS_CC);
-		if (node2p) {
-			doc2 = node2p->doc;
-		}
-		if (doc2 == NULL) {
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "Invalid Document");
-			return;
-		}
-		
-		intern->doc2 = (php_libxml_node_object*) emalloc(sizeof(php_libxml_node_object));
-		memset(intern->doc2, 0, sizeof(php_libxml_node_object));
-		intern->doc2->document = xml_object2->document;
-		php_libxml_increment_doc_ref(intern->doc2, doc2);
-	}
-	
-	xmlChar *mem1, *mem2 = NULL;
-	int size1, size2 = 0;
-	const char *text1 = get_libxml_dom_string(intern->doc1, mem1, size1);
-	const char *text2 = get_libxml_dom_string(intern->doc2, mem2, size2);
-	
-	intern->xiddoc1 = (XID_DOMDocument *) string_to_xid_domdocument(intern, (const char *)mem1 );
-	intern->xiddoc2 = (XID_DOMDocument *) string_to_xid_domdocument(intern, (const char *)mem2 );
-	DebugBreak();
-	DOMDocument *deltaDoc = XyDelta::XyDiff(intern->xiddoc1, "doc1", intern->xiddoc2, "doc2", NULL);
-
 	DOMImplementation *impl = DOMImplementationRegistry::getDOMImplementation(XMLString::transcode("LS"));
 	DOMLSSerializer* theSerializer = ((DOMImplementationLS*)impl)->createLSSerializer();
 	DOMLSOutput *theOutput = ((DOMImplementationLS*)impl)->createLSOutput();
 	
-
 	XMLFormatTarget *myFormatTarget = new MemBufFormatTarget();
 	theOutput->setByteStream(myFormatTarget);
-	
 	
 	try {
 		if (theSerializer->getDomConfig()->canSetParameter(XMLUni::fgDOMWRTFormatPrettyPrint, true))
 			theSerializer->getDomConfig()->setParameter(XMLUni::fgDOMWRTFormatPrettyPrint, true);
 		if (theSerializer->getDomConfig()->canSetParameter(XMLUni::fgDOMXMLDeclaration, true)) 
 		    theSerializer->getDomConfig()->setParameter(XMLUni::fgDOMXMLDeclaration, true);		
-		theSerializer->write((DOMDocument*)deltaDoc, theOutput);
+		theSerializer->write((DOMDocument*)xiddoc, theOutput);
 	}
 	catch (const XMLException& toCatch) {
-		char* message = XMLString::transcode(toCatch.getMessage());
-		std::cout << "Exception message is: \n" << message << std::endl;
-		XMLString::release(&message);
+		std::cout << "Exception message is: \n" << XMLString::transcode(toCatch.getMessage()) << std::endl;
 	}
 	catch (const DOMException& toCatch) {
-		char* message = XMLString::transcode(toCatch.msg);
-		std::cout << "Exception message is: \n" << message << std::endl;
-		XMLString::release(&message);
+		std::cout << "Exception message is: \n" << XMLString::transcode(toCatch.getMessage()) << std::endl;
 	}
 	catch (...) {
 		std::cout << "Unexpected Exception" << std::endl;
 	}
-
+	
 	char* theXMLString_Encoded = (char*) ((MemBufFormatTarget*)myFormatTarget)->getRawBuffer();
 	int xmlLen = (int) ((MemBufFormatTarget*)myFormatTarget)->getLen();
-
+	
 	char *xmlString = (char *) emalloc(sizeof(char)*xmlLen+1);
 	strncpy (xmlString, theXMLString_Encoded, xmlLen);
 	xmlString[xmlLen] = '\0';
-
 	
-	xmlDoc *newdoc;
-	newdoc = string_to_dom_document(xmlString);
-	if (!newdoc) {
-		RETURN_FALSE;
-	}
-	zval *rv;
-	int ret;
-	DOM_RET_OBJ(rv, (xmlNodePtr) newdoc, &ret, NULL);
-
-	efree(xmlString);
-	// Free memory
-	if (size1) {
-		xmlFree(mem1);
-	}
-	if (size2) {
-		xmlFree(mem2);
-	}
-
 	theOutput->release();
 	theSerializer->release();
-}
-
-static xmlDocPtr string_to_dom_document(const char *source)
-{
-	xmlDocPtr ret;
+	
+	
+	xmlDocPtr newdoc;
 	xmlParserCtxtPtr ctxt = NULL;
 	
-	ctxt = xmlCreateDocParserCtxt((xmlChar *)source);
+	ctxt = xmlCreateDocParserCtxt((xmlChar *)xmlString);
 	if (ctxt == NULL) {
-		return(NULL);
+		newdoc = NULL;
 	}
 	xmlParseDocument(ctxt);
 	if (ctxt->wellFormed) {
-		ret = ctxt->myDoc;
+		newdoc = ctxt->myDoc;
 	}
-	return ret;
+
+	efree(xmlString);
+	return newdoc;
+}
+
+XID_DOMDocument * libxml_domdocument_to_xid_domdocument(php_libxml_node_object *libxml_doc)
+{
+	xmlChar *mem = NULL;
+	int size = 0;
+	XID_DOMDocument *xiddoc;
+	dom_doc_propsptr doc_props;
+	int format = 0;
+	xmlDocPtr docp;
+
+	docp = (xmlDocPtr) libxml_doc->document->ptr;
+	doc_props = dom_get_doc_props(libxml_doc);
+	format = doc_props->formatoutput;
+	xmlDocDumpFormatMemory(docp, &mem, &size, format);
+		
+	const char *xmlString = (const char *)mem;
+	
+
+	try {
+		XMLPlatformUtils::Initialize();
+	}
+	catch(const XMLException& toCatch) {
+		char *message = strcat("XMLException: Error during Xerces-c Initialization:\n Exception message: ", XyLatinStr(toCatch.getMessage()).localForm());
+		zend_throw_exception(zend_exception_get_default(TSRMLS_C),
+							 message,
+							 0 TSRMLS_CC);
+	}
+	
+	static const XMLCh gLS[] = { chLatin_L, chLatin_S, chNull };
+	try {
+		DOMImplementation *impl = DOMImplementationRegistry::getDOMImplementation(gLS);
+		DOMLSParser *theParser = ((DOMImplementationLS*)impl)->createLSParser(DOMImplementationLS::MODE_SYNCHRONOUS, 0);
+		DOMErrorHandler * handler = new xydeltaParseHandler();
+		XMLCh *myWideString = XMLString::transcode(xmlString);
+		MemBufInputSource *memIS = new MemBufInputSource((const XMLByte *)xmlString, strlen(xmlString), "test", false);
+		Wrapper4InputSource *wrapper = new Wrapper4InputSource(memIS, false);		
+		theParser->getDomConfig()->setParameter(XMLUni::fgDOMErrorHandler, handler);
+		xiddoc = (XID_DOMDocument *) theParser->parse((DOMLSInput *) wrapper);
+	} catch (const XMLException& e) {
+		zend_throw_exception(zend_exception_get_default(TSRMLS_C),
+							 strcat("XMLException: An error occurred during parsing: ",XyLatinStr(e.getMessage()).localForm()),
+							 0 TSRMLS_CC);
+	} catch (const DOMException& toCatch) {
+		char* message = XMLString::transcode(toCatch.msg);
+		zend_throw_exception(zend_exception_get_default(TSRMLS_C),
+							 strcat("DOMException: An error occurred during parsing: ",message),
+							 0 TSRMLS_CC);
+		XMLString::release(&message);
+	} catch (...) {
+		zend_throw_exception(zend_exception_get_default(TSRMLS_C),
+							 "Unhandled exception in XML parsing",
+							 0 TSRMLS_CC);
+	}
+	
+	if (size) {
+		xmlFree(mem);
+	}
+	return xiddoc;
 }
 
 ZEND_METHOD(xydiff, __construct)
@@ -402,6 +354,7 @@ ZEND_METHOD(xydiff, __construct)
 		RETURN_FALSE;
 	}
 	intern = (xydiff_object *)zend_object_store_get_object(id TSRMLS_CC);
+	
 	if (intern != NULL) {
 		intern->doc1 = NULL;
 		intern->doc2 = NULL;
@@ -413,12 +366,99 @@ ZEND_METHOD(xydiff, __construct)
 	
 }
 
-/* Every user-visible function in PHP should document itself in the source */
-/* {{{ proto string confirm_xydiff_compiled(string arg)
- Return a string to confirm that the module is compiled in */
+ZEND_METHOD(xydiff, loadXML)
+{
+	zval *id, *doc1p = NULL;
+	xmlDocPtr doc1 = NULL;
+	xydiff_object *intern;
+	xmlNode *node1p = NULL;
+	
+	php_libxml_node_object *xml_object1;
+	
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oo", &id, xydiff_class_entry, &doc1p) == FAILURE) {
+		RETURN_FALSE;
+	}
+	
+	intern = (xydiff_object *)zend_object_store_get_object(id TSRMLS_CC);
+	if (intern != NULL) {
+		dom_object *domobj = (dom_object *) zend_object_store_get_object(doc1p TSRMLS_CC);
+		//xiddomdocument_sync_with_libxml(domobj);
+		//intern->xiddoc1 = (XID_DOMDocument *) domobj->ptr;
+		
+		xml_object1 = (php_libxml_node_object *) domobj;
+		intern->xiddoc1 = libxml_domdocument_to_xid_domdocument(xml_object1);
+//		
+//		node1p = php_libxml_import_node(doc1p TSRMLS_CC);
+//		if (node1p) {
+//			doc1 = node1p->doc;
+//		}
+//		if (doc1 == NULL) {
+//			php_error_docref(NULL TSRMLS_CC, E_WARNING, "Invalid Document");
+//			return;
+//		}
+//		
+//		intern->doc1 = (php_libxml_node_object*) emalloc(sizeof(php_libxml_node_object));
+//		memset(intern->doc1, 0, sizeof(php_libxml_node_object));
+//		intern->doc1->document = xml_object1->document;
+//		
+//		php_libxml_increment_doc_ref(intern->doc1, doc1);
+	}
+}
+void dom_write_property(zval *object, zval *member, zval *value TSRMLS_DC);
 
+ZEND_METHOD(xydiff, diffXML)
+{
+	zval *id, *docp = NULL;
+	xmlDocPtr doc = NULL;
+	xydiff_object *intern;
+	xmlNode *nodep = NULL;
+	php_libxml_node_object *xml_object;
 
-/* Every user-visible function in PHP should document itself in the source */
-/* {{{ proto string confirm_xydiff_compiled(string arg)
- Return a string to confirm that the module is compiled in */
+	zval *rv;
+	int ret;
 
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oo", &id, xydiff_class_entry, &docp) == FAILURE) {
+		RETURN_FALSE;
+	}
+
+	intern = (xydiff_object *)zend_object_store_get_object(id TSRMLS_CC);
+	if (intern != NULL) {
+
+		xml_object = (php_libxml_node_object *) zend_object_store_get_object(docp TSRMLS_CC);		
+		xiddomdocument_sync_with_libxml(xml_object);
+
+		intern->xiddoc2 = get_xiddomdocument(xml_object);
+		nodep = php_libxml_import_node(docp TSRMLS_CC);
+		if (nodep) {
+			if (nodep->doc == NULL) {
+				php_error_docref(NULL TSRMLS_CC, E_WARNING, "Imported Node must have associated Document");
+				RETURN_NULL();
+			}
+			if (nodep->type == XML_DOCUMENT_NODE || nodep->type == XML_HTML_DOCUMENT_NODE) {
+				nodep = xmlDocGetRootElement((xmlDocPtr) nodep);
+			}
+			doc = nodep->doc;
+		}
+		if (doc == NULL) {
+			php_error_docref(NULL TSRMLS_CC, E_WARNING, "Invalid Document");
+			return;
+		}
+
+//		intern->doc2 = (php_libxml_node_object*) emalloc(sizeof(php_libxml_node_object));
+//		memset(intern->doc2, 0, sizeof(php_libxml_node_object));
+//		intern->doc2->document = xml_object->document;
+//		xmlNodePtr testNode = (xmlNodePtr) nodep;
+//		php_libxml_increment_doc_ref(intern->doc2, doc);
+//		php_libxml_increment_node_ptr(xml_object, (xmlNodePtr)nodep, NULL TSRMLS_CC);
+
+		DOMDocument *deltaDoc = XyDelta::XyDiff(intern->xiddoc1, "doc1", (XID_DOMDocument *) intern->xiddoc2, "doc2", NULL);
+
+		intern->libxml_delta_doc = xid_domdocument_to_libxml_domdocument((XID_DOMDocument*)deltaDoc);
+		
+	}
+	
+	if (!intern->libxml_delta_doc)
+		RETURN_FALSE;
+	
+	DOM_RET_OBJ(rv, (xmlNodePtr) intern->libxml_delta_doc, &ret, NULL);
+}

@@ -34,6 +34,8 @@ extern "C" {
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/sysctl.h>
+#include "include/xydiffprocessor.h"
+#include "include/xiddomdocument.h"
 
 //static zend_object_handlers xydiff_object_handlers;
 
@@ -92,13 +94,30 @@ static void php_xydiff_init_globals(zend_xydiff_globals *xydiff_globals)
 }
 */
 
+static HashTable classes;
+
+
+static zend_class_entry *xiddomdocument_class_entry;
+
+
+
+
+
+
+
+
+
+
 PHP_MINIT_FUNCTION(xydiff)
 {
 //	
+//	zend_class_entry *ce = xiddomdocument_class_entry;
 	register_xydiff(TSRMLS_CC);
+	register_xiddomdocument(TSRMLS_CC);
 	/* If you have INI entries, uncomment these lines 
 	REGISTER_INI_ENTRIES();
 	*/
+	
 	return SUCCESS;
 }
 
