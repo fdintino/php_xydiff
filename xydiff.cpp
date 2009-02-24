@@ -27,19 +27,21 @@ extern "C" {
 	#include "php_ini.h"
 	#include "ext/standard/info.h"
 }
-#include "php_xydiff.hpp"
+
 
 #include <assert.h>
 #include <stdbool.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/sysctl.h>
-#include "include/xydiffprocessor.h"
-#include "include/xiddomdocument.h"
+
+#include "php_xydiff.hpp"
+#include "xydiffprocessor.h"
+#include "xiddomdocument.h"
 
 //static zend_object_handlers xydiff_object_handlers;
 
-// XERCES_CPP_NAMESPACE_USE
+XERCES_CPP_NAMESPACE_USE
 
 /* If you declare any globals in php_xydiff.h uncomment this:
 ZEND_DECLARE_MODULE_GLOBALS(xydiff)
@@ -117,6 +119,16 @@ PHP_MINIT_FUNCTION(xydiff)
 	/* If you have INI entries, uncomment these lines 
 	REGISTER_INI_ENTRIES();
 	*/
+	
+	try {
+		XMLPlatformUtils::Initialize();
+	}
+	catch(const XMLException& toCatch) {
+		char *message = strcat("XMLException: Error during Xerces-c Initialization:\n Exception message: ", XyLatinStr(toCatch.getMessage()).localForm());
+		zend_throw_exception(zend_exception_get_default(TSRMLS_C),
+							 message,
+							 0 TSRMLS_CC);
+	}
 	
 	return SUCCESS;
 }

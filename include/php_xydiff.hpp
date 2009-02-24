@@ -93,13 +93,9 @@ PHP_MINFO_FUNCTION(xydiff);
 
 
 
-dom_doc_propsptr dom_get_doc_props(php_libxml_node_object *node);
 const char * get_libxml_dom_string(php_libxml_node_object *doc, xmlChar* &mem, int &size);
 static xmlDocPtr string_to_dom_document(const char *source);
 char * xiddomdocument_to_string(xercesc::DOMDocument *doc);
-ZEND_METHOD(xydiff, diffXML);
-ZEND_METHOD(xydiff, loadXML);
-ZEND_METHOD(xydiff, __construct);
 
 
 /* 

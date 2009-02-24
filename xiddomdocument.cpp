@@ -65,6 +65,8 @@ static zend_class_entry *xiddomdocument_class_entry;
 static zend_function_entry xiddomdocument_methods[] = {
 	ZEND_ME(xiddomdocument, __construct, NULL, ZEND_ACC_PUBLIC)
 	ZEND_ME(xiddomdocument, __destruct, NULL, ZEND_ACC_PUBLIC)
+	ZEND_ME(xiddomdocument, getXidMap, NULL, ZEND_ACC_PUBLIC)
+	ZEND_ME(xiddomdocument, generateXidTaggedDocument, NULL, ZEND_ACC_PUBLIC)
 	{ NULL, NULL, NULL }
 };
 
@@ -178,6 +180,62 @@ ZEND_METHOD(xiddomdocument, __destruct)
 	FREE_HASHTABLE(xml_object->properties);
 }
 
+ZEND_METHOD(xiddomdocument, getXidMap)
+{
+	zval *id;
+	php_libxml_node_object *intern;
+	XID_DOMDocument *xiddoc;
+
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, xiddomdocument_class_entry) == FAILURE) {
+		return;
+	}
+
+	intern = (php_libxml_node_object *) zend_object_store_get_object(id TSRMLS_CC);
+	xiddoc = get_xiddomdocument(intern);
+	const char *xidmap = xiddoc->getXidMap().String().c_str();
+	RETVAL_STRINGL(xidmap, strlen(xidmap), true);
+
+}
+
+ZEND_METHOD(xiddomdocument, generateXidTaggedDocument)
+{
+	zval *id, *rv;
+	php_libxml_node_object *intern;
+	XID_DOMDocument *xiddoc;
+	int ret;
+	
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, xiddomdocument_class_entry) == FAILURE) {
+		return;
+	}
+	intern = (php_libxml_node_object *) zend_object_store_get_object(id TSRMLS_CC);
+	xiddoc = get_xiddomdocument(intern);
+	try {
+		XID_DOMDocument* d = XID_DOMDocument::copy(xiddoc);
+		
+		DOMNode* root = (DOMNode *) d->getDocumentElement();
+		if (root!=NULL) Restricted::XidTagSubtree(d, root);
+		xmlDocPtr libxmldoc = xid_domdocument_to_libxml_domdocument(d);
+		
+		//d->release();
+		//delete d;
+		if (!libxmldoc)
+			RETURN_FALSE;
+		DOM_RET_OBJ(rv, (xmlNodePtr) libxmldoc, &ret, NULL);
+		
+	}
+	catch( const VersionManagerException &e ) {
+		zend_throw_exception(zend_exception_get_default(TSRMLS_C),
+							 strcat("VersionManagerException: ", e.message.c_str() ),
+							 0 TSRMLS_CC);
+	}
+	catch( const DOMException &e ) {
+		zend_throw_exception(zend_exception_get_default(TSRMLS_C),
+							 strcat("DOMException: ", XMLString::transcode(e.msg) ),
+							 0 TSRMLS_CC);
+	}
+
+}
+
 ZEND_METHOD(xiddomdocument, __construct)
 {
 	zval *id;
@@ -245,4 +303,133 @@ ZEND_METHOD(xiddomdocument, __construct)
 	
 //	FREE_ZVAL(encoding_str);
 //	FREE_ZVAL(version_str);
+}
+
+
+
+xmlDocPtr xid_domdocument_to_libxml_domdocument(XID_DOMDocument *xiddoc)
+{
+	DOMImplementation *impl = DOMImplementationRegistry::getDOMImplementation(XMLString::transcode("LS"));
+	DOMLSSerializer* theSerializer = ((DOMImplementationLS*)impl)->createLSSerializer();
+	DOMLSOutput *theOutput = ((DOMImplementationLS*)impl)->createLSOutput();
+	
+	XMLFormatTarget *myFormatTarget = new MemBufFormatTarget();
+	theOutput->setByteStream(myFormatTarget);
+	
+	try {
+		if (theSerializer->getDomConfig()->canSetParameter(XMLUni::fgDOMWRTFormatPrettyPrint, true))
+			theSerializer->getDomConfig()->setParameter(XMLUni::fgDOMWRTFormatPrettyPrint, true);
+		if (theSerializer->getDomConfig()->canSetParameter(XMLUni::fgDOMXMLDeclaration, true)) 
+		    theSerializer->getDomConfig()->setParameter(XMLUni::fgDOMXMLDeclaration, true);		
+		theSerializer->write((DOMDocument*)xiddoc, theOutput);
+	}
+	catch (const XMLException& toCatch) {
+		std::cout << "Exception message is: \n" << XMLString::transcode(toCatch.getMessage()) << std::endl;
+	}
+	catch (const DOMException& toCatch) {
+		std::cout << "Exception message is: \n" << XMLString::transcode(toCatch.getMessage()) << std::endl;
+	}
+	catch (...) {
+		std::cout << "Unexpected Exception" << std::endl;
+	}
+	
+	char* theXMLString_Encoded = (char*) ((MemBufFormatTarget*)myFormatTarget)->getRawBuffer();
+	int xmlLen = (int) ((MemBufFormatTarget*)myFormatTarget)->getLen();
+	
+	char *xmlString = (char *) emalloc(sizeof(char)*xmlLen+1);
+	strncpy (xmlString, theXMLString_Encoded, xmlLen);
+	xmlString[xmlLen] = '\0';
+	
+	theOutput->release();
+	theSerializer->release();
+	
+	
+	xmlDocPtr newdoc;
+	xmlParserCtxtPtr ctxt = NULL;
+	
+	ctxt = xmlCreateDocParserCtxt((xmlChar *)xmlString);
+	if (ctxt == NULL) {
+		newdoc = NULL;
+	}
+	xmlParseDocument(ctxt);
+	if (ctxt->wellFormed) {
+		newdoc = ctxt->myDoc;
+	}
+	
+	efree(xmlString);
+	return newdoc;
+}
+
+XID_DOMDocument * libxml_domdocument_to_xid_domdocument(php_libxml_node_object *libxml_doc)
+{
+	xmlChar *mem = NULL;
+	int size = 0;
+	DOMDocument *xiddoc;
+	dom_doc_propsptr doc_props;
+	int format = 0;
+	xmlDocPtr docp;
+	
+	docp = (xmlDocPtr) libxml_doc->document->ptr;
+	doc_props = dom_get_doc_props(libxml_doc);
+	format = doc_props->formatoutput;
+	xmlDocDumpFormatMemory(docp, &mem, &size, format);
+	
+	const char *xmlString = (const char *)mem;
+	
+	static const XMLCh gLS[] = { chLatin_L, chLatin_S, chNull };
+	try {
+		DOMImplementation *impl = DOMImplementationRegistry::getDOMImplementation(gLS);
+		DOMLSParser *theParser = ((DOMImplementationLS*)impl)->createLSParser(DOMImplementationLS::MODE_SYNCHRONOUS, 0);
+		DOMErrorHandler * handler = new xydeltaParseHandler();
+		XMLCh *myWideString = XMLString::transcode(xmlString);
+		MemBufInputSource *memIS = new MemBufInputSource((const XMLByte *)xmlString, strlen(xmlString), "test", false);
+		Wrapper4InputSource *wrapper = new Wrapper4InputSource(memIS, false);		
+		theParser->getDomConfig()->setParameter(XMLUni::fgDOMErrorHandler, handler);
+		xiddoc = theParser->parse((DOMLSInput *) wrapper);
+	} catch (const XMLException& e) {
+		zend_throw_exception(zend_exception_get_default(TSRMLS_C),
+							 strcat("XMLException: An error occurred during parsing: ",XyLatinStr(e.getMessage()).localForm()),
+							 0 TSRMLS_CC);
+	} catch (const DOMException& toCatch) {
+		char* message = XMLString::transcode(toCatch.msg);
+		zend_throw_exception(zend_exception_get_default(TSRMLS_C),
+							 strcat("DOMException: An error occurred during parsing: ",message),
+							 0 TSRMLS_CC);
+		XMLString::release(&message);
+	} catch (...) {
+		zend_throw_exception(zend_exception_get_default(TSRMLS_C),
+							 "Unhandled exception in XML parsing",
+							 0 TSRMLS_CC);
+	}
+	
+	if (size) {
+		xmlFree(mem);
+	}
+	XID_DOMDocument *xiddomdoc = new XID_DOMDocument(xiddoc);
+	return xiddomdoc;
+}
+
+
+dom_doc_propsptr dom_get_doc_props(php_libxml_node_object *node)
+{
+	dom_doc_propsptr doc_props;
+	php_libxml_ref_obj *document = node->document;
+	
+	if (document && document->doc_props) {
+		return document->doc_props;
+	} else {
+		doc_props = (libxml_doc_props*) emalloc(sizeof(libxml_doc_props));
+		doc_props->formatoutput = 0;
+		doc_props->validateonparse = 0;
+		doc_props->resolveexternals = 0;
+		doc_props->preservewhitespace = 1;
+		doc_props->substituteentities = 0;
+		doc_props->stricterror = 1;
+		doc_props->recover = 0;
+		doc_props->classmap = NULL;
+		if (document) {
+			document->doc_props = doc_props;
+		}
+		return doc_props;
+	}
 }
