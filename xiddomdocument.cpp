@@ -1,22 +1,3 @@
-/*
- +----------------------------------------------------------------------+
- | PHP Version 5                                                        |
- +----------------------------------------------------------------------+
- | Copyright (c) 1997-2008 The PHP Group                                |
- +----------------------------------------------------------------------+
- | This source file is subject to version 3.01 of the PHP license,      |
- | that is bundled with this package in the file LICENSE, and is        |
- | available through the world-wide-web at the following url:           |
- | http://www.php.net/license/3_01.txt                                  |
- | If you did not receive a copy of the PHP license and are unable to   |
- | obtain it through the world-wide-web, please send a note to          |
- | license@php.net so we can mail you a copy immediately.               |
- +----------------------------------------------------------------------+
- | Author:                                                              |
- +----------------------------------------------------------------------+
- */
-
-/* $Id: xydiffprocessor.cpp,v 1.16.2.1.2.1.2.1 2009/01/23 11:46:50 fdintino Exp $ */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -72,29 +53,37 @@ static zend_function_entry xiddomdocument_methods[] = {
 
 static zend_object_handlers xiddomdocument_object_handlers;
 
+
+
+static dom_object* xiddomdocument_set_class(zend_class_entry *class_type, zend_bool hash_copy TSRMLS_DC) /* {{{ */
+{
+	zval *tmp;
+	dom_object *intern;
+
+	intern = (dom_object *) emalloc(sizeof(dom_object));
+
+	intern->ptr = NULL;
+	intern->prop_handler = NULL;
+	intern->document = NULL;
+	
+
+	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
+	if (hash_copy) {
+		zend_hash_copy(intern->std.properties, &class_type->default_properties, (copy_ctor_func_t) zval_add_ref, (void *) &tmp, sizeof(zval *));
+	}
+	
+	return intern;
+}
+
+
+
 zend_object_value xiddomdocument_object_create(zend_class_entry *class_type TSRMLS_DC)
 {
 	zend_object_value retval;
 	dom_object *intern;
 	zval *tmp;
-	
-	intern = (dom_object *) emalloc(sizeof(dom_object));
-	memset(intern, 0, sizeof(dom_object));
-	intern->ptr = NULL;
-	intern->prop_handler = NULL;
-	intern->document = NULL;
-	
-	zend_class_entry *base_class;
-	base_class = class_type;
-	while(base_class->type != ZEND_INTERNAL_CLASS && base_class->parent != NULL) {
-		base_class = base_class->parent;
-	}
-	zend_class_entry **pce;
-	if (zend_lookup_class("DOMDocument", strlen("DOMDocument"), &pce TSRMLS_CC) == FAILURE) {
-	}
-	
-	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
-	zend_hash_copy(intern->std.properties, &class_type->default_properties, (copy_ctor_func_t) zval_add_ref, (void *) &tmp, sizeof(zval *));
+
+	intern = xiddomdocument_set_class(class_type, 1 TSRMLS_CC);
 	
 	retval.handle = zend_objects_store_put(intern,
 										   (zend_objects_store_dtor_t)zend_objects_destroy_object,
@@ -127,13 +116,15 @@ void register_xiddomdocument(TSRMLS_DC)
 	memcpy(&xiddomdocument_object_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 	zend_class_entry ce;
 	zend_class_entry **pce;
-	//	zend_class_entry *pce;
-	if (zend_lookup_class("DOMDocument", strlen("DOMDocument"), &pce TSRMLS_CC) == FAILURE) {
+//	if (zend_lookup_class("DOMDocument", strlen("DOMDocument"), &pce TSRMLS_CC) == FAILURE) {
+//		return;
+//	}
+	if (zend_hash_find(CG(class_table), "domdocument", sizeof("domdocument"), (void **) &pce) == FAILURE) {
 		return;
 	}
 	INIT_CLASS_ENTRY(ce, "XIDDOMDocument", xiddomdocument_methods);
 	ce.create_object = xiddomdocument_object_create;
-	xiddomdocument_class_entry = zend_register_internal_class_ex(&ce TSRMLS_CC, pce[0], NULL TSRMLS_CC);
+	xiddomdocument_class_entry = zend_register_internal_class_ex(&ce, pce[0], NULL TSRMLS_CC);
 }
 
 static void xiddomdocument_object_clone(void *object, void **object_clone TSRMLS_DC)
@@ -246,7 +237,8 @@ ZEND_METHOD(xiddomdocument, __construct)
 	char *encoding, *version = NULL;
 	int encoding_len = 0, version_len = 0, refcount;
 
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|ss", &id, xiddomdocument_class_entry, &version, &version_len, &encoding, &encoding_len) == FAILURE) {
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O|ss", &id, xiddomdocument_class_entry,
+									 &version, &version_len, &encoding, &encoding_len) == FAILURE) {
 		return;
 	}
 
@@ -261,8 +253,29 @@ ZEND_METHOD(xiddomdocument, __construct)
 	zval *self = getThis();
 	zend_function *ctor = ce->parent ? ce->parent->constructor : NULL;
 	if (ctor) {
-		zend_call_method_with_0_params(&self, ce, &ctor, ZEND_CONSTRUCTOR_FUNC_NAME, NULL);
+		zval *encoding_str;
+		zval *version_str;
+		if (version_len > 0) {
+			MAKE_STD_ZVAL(version_str);
+			ZVAL_STRING(version_str, version, 1);		
+		}
+		if (encoding_len > 0) {
+			MAKE_STD_ZVAL(encoding_str);
+			ZVAL_STRING(encoding_str, encoding, 1);
+		}
+		if (encoding_len > 0) {
+			zend_call_method_with_2_params(&self, ce, &ctor, ZEND_CONSTRUCTOR_FUNC_NAME, NULL, version_str, encoding_str);
+			FREE_ZVAL(encoding_str);
+			FREE_ZVAL(version_str);
+		} else if (version_len > 0) {
+			zend_call_method_with_1_params(&self, ce, &ctor, ZEND_CONSTRUCTOR_FUNC_NAME, NULL, version_str);
+			FREE_ZVAL(version_str);
+		} else {
+			zend_call_method_with_0_params(&self, ce, &ctor, ZEND_CONSTRUCTOR_FUNC_NAME, NULL);
+		}
+		
 	}
+
 	
 	php_libxml_node_object *xml_object = (php_libxml_node_object *) intern;
 	ALLOC_HASHTABLE(xml_object->properties);
@@ -271,38 +284,6 @@ ZEND_METHOD(xiddomdocument, __construct)
 		return;
 	}
 	
-//	zval *encoding_str;
-//	zval *version_str;
-//	if (version_len == 0) {
-//		version = "1.0";
-//		MAKE_STD_ZVAL(version_str);
-//		ZVAL_STRING(version_str, version, 1);		
-//	}
-//	if (encoding_len > 0) {
-//		encoding = "iso-8859-1";
-//		MAKE_STD_ZVAL(encoding_str);
-//		ZVAL_STRING(encoding_str, encoding, 1);
-//	}
-//	if (encoding_len > 0) {
-//		zend_call_method_with_2_params(&self, intern->pce_ptr, NULL, "load", NULL, version_str, encoding_str);
-//	} else if (version_len == 0) {
-//		
-//		zend_call_method_with_1_params(&self, intern->pce_ptr, NULL, "__construct", NULL, version_str);
-//	} else {
-//		zend_call_method_with_0_params(&self, ce->parent, NULL, "__construct", NULL);
-//	}
-	
-//	zval *libxml_id;
-//	php_libxml_node_object *libxml_object;
-//	
-//	ALLOC_ZVAL(libxml_id);
-//	object_init_ex(libxml_id, intern->pce_ptr);
-//	libxml_object = (php_libxml_node_object *)zend_object_store_get_object(libxml_id TSRMLS_CC);
-//	intern->doc = libxml_object;
-//	FREE_ZVAL(libxml_id);
-	
-//	FREE_ZVAL(encoding_str);
-//	FREE_ZVAL(version_str);
 }
 
 

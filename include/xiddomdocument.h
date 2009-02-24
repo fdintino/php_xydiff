@@ -12,7 +12,7 @@ typedef struct _xiddomdoc_object {
 	void *ptr;
 	php_libxml_ref_obj *document;
 	HashTable *prop_handler;
-	zend_object_handle handle;
+	zend_object_handle handle; 
 	
 	XID_DOMDocument *xiddoc;
 	php_libxml_node_object *doc;	

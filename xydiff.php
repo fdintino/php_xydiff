@@ -2,7 +2,7 @@
 $br = (php_sapi_name() == "cli")? "":"<br>";
 $module = 'xydiff';
 if(!extension_loaded('xydiff')) {
-	dl($module . PHP_SHLIB_SUFFIX);
+	dl($module . "." . PHP_SHLIB_SUFFIX);
 }
 
 $functions = get_extension_funcs($module);

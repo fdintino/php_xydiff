@@ -55,9 +55,20 @@ const zend_function_entry xydiff_functions[] = {
 };
 
 
+#if ZEND_MODULE_API_NO >= 220050617 
+static zend_module_dep xydiff_deps[] = {
+	ZEND_MODULE_REQUIRED("dom")
+	{NULL, NULL, NULL}
+}
+#endif
+
+
 
 zend_module_entry xydiff_module_entry = {
-#if ZEND_MODULE_API_NO >= 20010901
+#if ZEND_MODULE_API_NO >= 220050617 
+	STANDARD_MODULE_HEADER_EX, NULL,
+	xydiff_deps,
+#elif ZEND_MODULE_API_NO >= 20010901
 	STANDARD_MODULE_HEADER,
 #endif
 	"xydiff",
@@ -101,24 +112,8 @@ static HashTable classes;
 
 static zend_class_entry *xiddomdocument_class_entry;
 
-
-
-
-
-
-
-
-
-
 PHP_MINIT_FUNCTION(xydiff)
 {
-//	
-//	zend_class_entry *ce = xiddomdocument_class_entry;
-	register_xydiff(TSRMLS_CC);
-	register_xiddomdocument(TSRMLS_CC);
-	/* If you have INI entries, uncomment these lines 
-	REGISTER_INI_ENTRIES();
-	*/
 	
 	try {
 		XMLPlatformUtils::Initialize();
@@ -129,6 +124,13 @@ PHP_MINIT_FUNCTION(xydiff)
 							 message,
 							 0 TSRMLS_CC);
 	}
+//
+	register_xydiff(TSRMLS_CC);
+	register_xiddomdocument(TSRMLS_CC);
+	/* If you have INI entries, uncomment these lines 
+	REGISTER_INI_ENTRIES();
+	*/
+
 	
 	return SUCCESS;
 }
@@ -157,7 +159,7 @@ PHP_RSHUTDOWN_FUNCTION(xydiff)
 PHP_MINFO_FUNCTION(xydiff)
 {
 	php_info_print_table_start();
-	php_info_print_table_header(2, "xydiff support", "enabled");
+	php_info_print_table_row(2, "xydiff support", "enabled");
 	php_info_print_table_end();
 
 	/* Remove comments if you have entries in php.ini
