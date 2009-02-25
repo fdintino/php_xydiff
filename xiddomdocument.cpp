@@ -36,6 +36,7 @@ extern "C" {
 
 #include "include/xydiffprocessor.h"
 #include "include/xiddomdocument.h"
+#include "include/xydiff_error_handler.h"
 
 #include <zend_interfaces.h>
 
@@ -54,6 +55,7 @@ static zend_function_entry xiddomdocument_methods[] = {
 static zend_object_handlers xiddomdocument_object_handlers;
 
 
+PHPAPI zend_class_entry *xydiff_exception_ce;
 
 static dom_object* xiddomdocument_set_class(zend_class_entry *class_type, zend_bool hash_copy TSRMLS_DC) /* {{{ */
 {
@@ -361,7 +363,7 @@ XID_DOMDocument * libxml_domdocument_to_xid_domdocument(php_libxml_node_object *
 	try {
 		DOMImplementation *impl = DOMImplementationRegistry::getDOMImplementation(gLS);
 		DOMLSParser *theParser = ((DOMImplementationLS*)impl)->createLSParser(DOMImplementationLS::MODE_SYNCHRONOUS, 0);
-		DOMErrorHandler * handler = new xydeltaParseHandler();
+		DOMErrorHandler * handler = new xydiffPHPParseHandler();
 		XMLCh *myWideString = XMLString::transcode(xmlString);
 		MemBufInputSource *memIS = new MemBufInputSource((const XMLByte *)xmlString, strlen(xmlString), "test", false);
 		Wrapper4InputSource *wrapper = new Wrapper4InputSource(memIS, false);		

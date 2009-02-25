@@ -38,6 +38,7 @@ extern "C" {
 #include "php_xydiff.hpp"
 #include "xydiffprocessor.h"
 #include "xiddomdocument.h"
+#include "xydiff_error_handler.h"
 
 //static zend_object_handlers xydiff_object_handlers;
 
@@ -125,8 +126,10 @@ PHP_MINIT_FUNCTION(xydiff)
 							 0 TSRMLS_CC);
 	}
 //
+	register_xydiff_exception(TSRMLS_CC);
 	register_xydiff(TSRMLS_CC);
 	register_xiddomdocument(TSRMLS_CC);
+	
 	/* If you have INI entries, uncomment these lines 
 	REGISTER_INI_ENTRIES();
 	*/
