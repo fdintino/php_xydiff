@@ -82,26 +82,16 @@ void register_xydiff()
 	xydiff_class_entry = zend_register_internal_class(&ce TSRMLS_CC);
 	zend_class_entry **xydiff_exception_ce_ptr;
 	if (zend_hash_find(CG(class_table), "xydiffexception", sizeof("xydiffexception"), (void **) &xydiff_exception_ce_ptr) == FAILURE) {
-		std::cout << "Couldn't find!" << std::endl;
 		xydiff_exception_ce = zend_exception_get_default(TSRMLS_C);
 	} else {
 		xydiff_exception_ce = xydiff_exception_ce_ptr[0];
-		std::cout << "FOUND!" << std::endl;
 	}
 }
 
 static void xydiff_object_dtor(void *object TSRMLS_DC)
 {
 	xydiff_object *intern = (xydiff_object *)object;
-	
 	zend_object_std_dtor(&intern->std TSRMLS_CC);
-	if (intern->xiddoc1) {
-		intern->xiddoc1->release();
-	}
-	if (intern->xiddoc2) {
-		intern->xiddoc2->release();
-	}
-
 	efree(object);
 }
 
@@ -113,9 +103,6 @@ zend_object_value xydiff_object_create(zend_class_entry *class_type TSRMLS_DC)
 
 	intern = (xydiff_object *) emalloc(sizeof(xydiff_object));
 	memset(intern, 0, sizeof(xydiff_object));
-	intern->ptr1 = NULL;
-	intern->doc1 = NULL;
-	intern->doc2 = NULL;
 	intern->xiddoc1 = NULL;
 	intern->xiddoc2 = NULL;
 	
@@ -278,7 +265,7 @@ ZEND_METHOD(xydiff, createDelta)
 			RETURN_FALSE;
 		}
 		if (intern->xiddoc2 == NULL) {
-			zend_throw_exception(zend_exception_get_default(TSRMLS_C),
+			zend_throw_exception(xydiff_exception_ce,
 								 "No end document has been specified",
 								 0 TSRMLS_CC);
 			RETURN_FALSE;
@@ -293,10 +280,6 @@ ZEND_METHOD(xydiff, createDelta)
 		if (!intern->libxml_delta_doc)
 			RETURN_FALSE;
 
-		DOM_RET_OBJ(rv, (xmlNodePtr) intern->libxml_delta_doc, &ret, NULL);
-
-		
+		DOM_RET_OBJ(rv, (xmlNodePtr) intern->libxml_delta_doc, &ret, NULL);		
 	}
-	
-	
 }

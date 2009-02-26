@@ -118,9 +118,6 @@ void register_xiddomdocument(TSRMLS_DC)
 	memcpy(&xiddomdocument_object_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 	zend_class_entry ce;
 	zend_class_entry **pce;
-//	if (zend_lookup_class("DOMDocument", strlen("DOMDocument"), &pce TSRMLS_CC) == FAILURE) {
-//		return;
-//	}
 	if (zend_hash_find(CG(class_table), "domdocument", sizeof("domdocument"), (void **) &pce) == FAILURE) {
 		return;
 	}
@@ -163,14 +160,19 @@ void propDestructor(void *pElement)
 ZEND_METHOD(xiddomdocument, __destruct)
 {
 	zval *id;
-	php_libxml_node_object *xml_object;
+	php_libxml_node_object *intern;
+	XID_DOMDocument *xiddoc;
 	
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, xiddomdocument_class_entry) == FAILURE) {
 		return;
 	}
-	xml_object = (php_libxml_node_object *) zend_object_store_get_object(id TSRMLS_CC);
-	zend_hash_destroy(xml_object->properties);
-	FREE_HASHTABLE(xml_object->properties);
+	intern = (php_libxml_node_object *) zend_object_store_get_object(id TSRMLS_CC);
+	xiddoc = get_xiddomdocument(intern);
+	if (xiddoc != NULL) {
+		xiddoc->release();
+	}
+	zend_hash_destroy(intern->properties);
+	FREE_HASHTABLE(intern->properties);
 }
 
 ZEND_METHOD(xiddomdocument, getXidMap)
@@ -388,7 +390,7 @@ XID_DOMDocument * libxml_domdocument_to_xid_domdocument(php_libxml_node_object *
 	if (size) {
 		xmlFree(mem);
 	}
-	XID_DOMDocument *xiddomdoc = new XID_DOMDocument(xiddoc);
+	XID_DOMDocument *xiddomdoc = new XID_DOMDocument(xiddoc, NULL, true);
 	return xiddomdoc;
 }
 

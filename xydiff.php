@@ -22,7 +22,7 @@ echo "$str\n";
 
 function test_xydiff() {
 	$dom1 = new XIDDOMDocument();
-	$dom1->load("tests/examples1.xml");
+	$dom1->load("tests/example1.xml");
 	$dom2 = new XIDDOMDocument();
 	$dom2->load("tests/example2.xml");
 	$xydiff = new XyDiff();

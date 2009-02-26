@@ -67,18 +67,6 @@ extern "C" {
 
 #define XYDIFF_CLASS_NAME "XyDiff"
 
-typedef struct _xydiff_object {
-	zend_object std;
-	void *ptr1;
-	void *ptr2;
-	php_libxml_ref_obj *docref1;
-	XID_DOMDocument *xiddoc1;
-	XID_DOMDocument *xiddoc2;
-	php_libxml_node_object *doc1;
-	php_libxml_node_object *doc2;
-	xmlDocPtr libxml_delta_doc;
-	zend_object_handle handle;
-} xydiff_object;
 
 static bool AmIBeingDebugged(void);
 
