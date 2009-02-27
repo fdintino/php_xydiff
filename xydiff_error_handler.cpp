@@ -25,12 +25,20 @@ static const zend_function_entry xydiff_exception_functions[] = {
 	{NULL, NULL, NULL}
 };
 static zend_class_entry *xydiff_exception_ce;
+static zend_class_entry *xy_xml_exception_ce;
+static zend_class_entry *xy_dom_exception_ce;
 
 void register_xydiff_exception()
 {
-	zend_class_entry ce;
-	INIT_CLASS_ENTRY(ce, "XyDiffException", xydiff_exception_functions);
-	xydiff_exception_ce = zend_register_internal_class_ex(&ce TSRMLS_CC, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
+	zend_class_entry ce_xydiff;
+	INIT_CLASS_ENTRY(ce_xydiff, "XyDiffException", xydiff_exception_functions);
+	xydiff_exception_ce = zend_register_internal_class_ex(&ce_xydiff TSRMLS_CC, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
+	zend_class_entry ce_xyxml;
+	INIT_CLASS_ENTRY(ce_xyxml, "XyXMLException", xydiff_exception_functions);
+	xy_xml_exception_ce = zend_register_internal_class_ex(&ce_xyxml TSRMLS_CC, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
+	zend_class_entry ce_xydom;
+	INIT_CLASS_ENTRY(ce_xydom, "XyDOMException", xydiff_exception_functions);
+	xy_dom_exception_ce = zend_register_internal_class_ex(&ce_xydom TSRMLS_CC, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
 }
 
 bool xydiffPHPParseHandler::handleError(const DOMError& domError)

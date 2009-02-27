@@ -74,7 +74,7 @@ void register_xydiff()
 	if (zend_hash_find(CG(class_table), "xydiffexception", sizeof("xydiffexception"), (void **) &xydiff_exception_ce_ptr) == FAILURE) {
 		xydiff_exception_ce = zend_exception_get_default(TSRMLS_C);
 	} else {
-		xydiff_exception_ce = xydiff_exception_ce_ptr[0];
+		xydiff_exception_ce = *xydiff_exception_ce_ptr;
 	}
 }
 

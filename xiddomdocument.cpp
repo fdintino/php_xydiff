@@ -45,28 +45,61 @@ static zend_function_entry xiddomdocument_methods[] = {
 static zend_object_handlers xiddomdocument_object_handlers;
 
 PHPAPI zend_class_entry *xydiff_exception_ce;
+PHPAPI zend_class_entry *xy_xml_exception_ce;
+PHPAPI zend_class_entry *xy_dom_exception_ce;
+
+
+void register_xiddomdocument(TSRMLS_DC)
+{
+	// Load Exception classes
+	// XyDiffException
+	zend_class_entry **xydiff_exception_ce_ptr;
+	if (zend_hash_find(CG(class_table), "xydiffexception", sizeof("xydiffexception"), (void **) &xydiff_exception_ce_ptr) == FAILURE) {
+		xydiff_exception_ce = zend_exception_get_default(TSRMLS_C);
+	} else {
+		xydiff_exception_ce = *xydiff_exception_ce_ptr;
+	}
+	// XyDomException
+	zend_class_entry **xy_dom_exception_ce_ptr;
+	if (zend_hash_find(CG(class_table), "xydomexception", sizeof("xydomexception"), (void **) &xy_dom_exception_ce_ptr) == FAILURE) {
+		xy_dom_exception_ce = zend_exception_get_default(TSRMLS_C);
+	} else {
+		xy_dom_exception_ce = *xy_dom_exception_ce_ptr;
+	}
+	// XyXMLException
+	zend_class_entry **xy_xml_exception_ce_ptr;
+	if (zend_hash_find(CG(class_table), "xyxmlexception", sizeof("xyxmlexception"), (void **) &xy_xml_exception_ce_ptr) == FAILURE) {
+		xy_xml_exception_ce = zend_exception_get_default(TSRMLS_C);
+	} else {
+		xy_xml_exception_ce = *xy_xml_exception_ce_ptr;
+	}
+
+	// Initialize XIDDOMDocument class as extension of DOMDocument class
+	memcpy(&xiddomdocument_object_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
+	zend_class_entry ce;
+	zend_class_entry **pce;
+	if (zend_hash_find(CG(class_table), "domdocument", sizeof("domdocument"), (void **) &pce) == FAILURE) {
+		return;
+	}
+	INIT_CLASS_ENTRY(ce, "XIDDOMDocument", xiddomdocument_methods);
+	ce.create_object = xiddomdocument_object_create;
+	xiddomdocument_class_entry = zend_register_internal_class_ex(&ce, *pce, NULL TSRMLS_CC);
+}
 
 static dom_object* xiddomdocument_set_class(zend_class_entry *class_type, zend_bool hash_copy TSRMLS_DC) /* {{{ */
 {
 	zval *tmp;
 	dom_object *intern;
-
 	intern = (dom_object *) emalloc(sizeof(dom_object));
-
 	intern->ptr = NULL;
 	intern->prop_handler = NULL;
 	intern->document = NULL;
-	
-
 	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
 	if (hash_copy) {
 		zend_hash_copy(intern->std.properties, &class_type->default_properties, (copy_ctor_func_t) zval_add_ref, (void *) &tmp, sizeof(zval *));
 	}
-	
 	return intern;
 }
-
-
 
 zend_object_value xiddomdocument_object_create(zend_class_entry *class_type TSRMLS_DC)
 {
@@ -84,6 +117,7 @@ zend_object_value xiddomdocument_object_create(zend_class_entry *class_type TSRM
 	return retval;
 }
 
+// This doesn't get called?
 static void xiddomdocument_object_dtor(void *object TSRMLS_DC)
 {
 	dom_object *intern;
@@ -99,26 +133,6 @@ static void xiddomdocument_object_dtor(void *object TSRMLS_DC)
 	int refcount = php_libxml_decrement_node_ptr((php_libxml_node_object *)intern TSRMLS_CC);
 	php_libxml_decrement_doc_ref((php_libxml_node_object *)intern TSRMLS_CC);
 	efree(object);
-}
-
-
-void register_xiddomdocument(TSRMLS_DC)
-{
-	memcpy(&xiddomdocument_object_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
-	zend_class_entry ce;
-	zend_class_entry **pce;
-	if (zend_hash_find(CG(class_table), "domdocument", sizeof("domdocument"), (void **) &pce) == FAILURE) {
-		return;
-	}
-	zend_class_entry **xydiff_exception_ce_ptr;
-	if (zend_hash_find(CG(class_table), "xydiffexception", sizeof("xydiffexception"), (void **) &xydiff_exception_ce_ptr) == FAILURE) {
-		xydiff_exception_ce = zend_exception_get_default(TSRMLS_C);
-	} else {
-		xydiff_exception_ce = xydiff_exception_ce_ptr[0];
-	}
-	INIT_CLASS_ENTRY(ce, "XIDDOMDocument", xiddomdocument_methods);
-	ce.create_object = xiddomdocument_object_create;
-	xiddomdocument_class_entry = zend_register_internal_class_ex(&ce, pce[0], NULL TSRMLS_CC);
 }
 
 static void xiddomdocument_object_clone(void *object, void **object_clone TSRMLS_DC)
@@ -142,7 +156,7 @@ XID_DOMDocument * get_xiddomdocument(php_libxml_node_object *object)
 	uintptr_t *xiddocptr;
 	zend_hash_find(object->properties, "xiddoc", sizeof("xiddoc"), (void **) &xiddocptr );
 	if (xiddocptr != NULL) {
-		return (XID_DOMDocument *) xiddocptr[0];
+		return (XID_DOMDocument *) *xiddocptr;
 	}
 }
 
@@ -204,6 +218,10 @@ ZEND_METHOD(xiddomdocument, setXidMap)
 		xiddoc->addXidMap(xidmap);
 	} catch( const DeltaException &e ) {
 		zend_throw_exception(xydiff_exception_ce, e.error, 0 TSRMLS_CC);
+	} catch (const XIDMapException &e ) {
+		zend_throw_exception(xydiff_exception_ce, strdup((e.context+": " +e.message).c_str()), 0 TSRMLS_CC);
+	} catch ( ... ) {
+		zend_throw_exception(xydiff_exception_ce, "Unexpected exception while setting XidMap", 0 TSRMLS_CC);
 	}
 }
 
@@ -234,12 +252,17 @@ ZEND_METHOD(xiddomdocument, generateXidTaggedDocument)
 		
 	}
 	catch( const VersionManagerException &e ) {
-		zend_throw_exception(xydiff_exception_ce, strdup(e.message.c_str()), 0 TSRMLS_CC);
+		zend_throw_exception(xydiff_exception_ce, strdup((e.context+": " +e.message).c_str()), 0 TSRMLS_CC);
 	}
 	catch( const DOMException &e ) {
-		zend_throw_exception(xydiff_exception_ce, XMLString::transcode(e.msg), 0 TSRMLS_CC);
+		zend_throw_exception(xy_dom_exception_ce, XMLString::transcode(e.msg), 0 TSRMLS_CC);
 	}
-
+	catch ( const DeltaException &e ) {
+		zend_throw_exception(xydiff_exception_ce, e.error, 0 TSRMLS_CC);
+	}
+	catch ( ... ) {
+		zend_throw_exception(xydiff_exception_ce, "Unknown error", 0 TSRMLS_CC);
+	}
 }
 
 ZEND_METHOD(xiddomdocument, __construct)
@@ -260,11 +283,9 @@ ZEND_METHOD(xiddomdocument, __construct)
 	intern = (dom_object *)zend_object_store_get_object(id TSRMLS_CC);
 
 	// Call parent constructor
-
 	if (zend_lookup_class("DOMDocument", strlen("DOMDocument"), &pce TSRMLS_CC) == FAILURE) {
 		return;
 	}
-
 	zval *self = getThis();
 	zend_function *ctor = ce->parent ? ce->parent->constructor : NULL;
 	if (ctor) {
@@ -291,6 +312,8 @@ ZEND_METHOD(xiddomdocument, __construct)
 		
 	}
 
+	// Initialize 'properties' HashTable, which we use to store the pointer to the associated C++
+	// XID_DOMDocument object
 	php_libxml_node_object *xml_object = (php_libxml_node_object *) intern;
 	ALLOC_HASHTABLE(xml_object->properties);
 	if (zend_hash_init(xml_object->properties, 50, NULL, (dtor_func_t) propDestructor, 0) == FAILURE) {
@@ -316,11 +339,11 @@ xmlDocPtr xid_domdocument_to_libxml_domdocument(XID_DOMDocument *xiddoc)
 		    theSerializer->getDomConfig()->setParameter(XMLUni::fgDOMXMLDeclaration, true);		
 		theSerializer->write((DOMDocument*)xiddoc, theOutput);
 	}
-	catch (const XMLException& toCatch) {
-		std::cout << "Exception message is: \n" << XMLString::transcode(toCatch.getMessage()) << std::endl;
+	catch (const XMLException& e) {
+		zend_throw_exception(xy_dom_exception_ce, XMLString::transcode(e.getMessage()), 0 TSRMLS_CC);
 	}
-	catch (const DOMException& toCatch) {
-		std::cout << "Exception message is: \n" << XMLString::transcode(toCatch.getMessage()) << std::endl;
+	catch( const DOMException& e ) {
+		zend_throw_exception(xy_xml_exception_ce, XMLString::transcode(e.msg), 0 TSRMLS_CC);
 	}
 	catch (...) {
 		std::cout << "Unexpected Exception" << std::endl;
@@ -385,7 +408,7 @@ XID_DOMDocument * libxml_domdocument_to_xid_domdocument(php_libxml_node_object *
 		char* message = XMLString::transcode(toCatch.msg);
 		zend_throw_exception(xydiff_exception_ce, XMLString::transcode(toCatch.msg), 0 TSRMLS_CC);
 	} catch (...) {
-		zend_throw_exception(xydiff_exception_ce, "Unknown error during XML parsing", 0 TSRMLS_CC);
+		zend_throw_exception(xydiff_exception_ce, "Unexpected exception during XML parsing", 0 TSRMLS_CC);
 	}
 	
 	if (size) {
