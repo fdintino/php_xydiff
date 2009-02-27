@@ -21,6 +21,16 @@
 #ifndef PHP_XYDIFF_H
 #define PHP_XYDIFF_H
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+extern "C" {
+#include "php.h"
+#include "php_ini.h"
+#include "ext/standard/info.h"
+}
+
 extern zend_module_entry xydiff_module_entry;
 #define phpext_xydiff_ptr &xydiff_module_entry
 

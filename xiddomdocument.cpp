@@ -1,14 +1,3 @@
-
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-extern "C" {
-#include "php.h"
-#include "php_ini.h"
-#include "ext/standard/info.h"
-	
-}
 #include "include/php_xydiff.hpp"
 
 #define XYDIFF_CLASS_NAME "XyDiff"
@@ -48,12 +37,12 @@ static zend_function_entry xiddomdocument_methods[] = {
 	ZEND_ME(xiddomdocument, __construct, NULL, ZEND_ACC_PUBLIC)
 	ZEND_ME(xiddomdocument, __destruct, NULL, ZEND_ACC_PUBLIC)
 	ZEND_ME(xiddomdocument, getXidMap, NULL, ZEND_ACC_PUBLIC)
+	ZEND_ME(xiddomdocument, setXidMap, NULL, ZEND_ACC_PUBLIC)
 	ZEND_ME(xiddomdocument, generateXidTaggedDocument, NULL, ZEND_ACC_PUBLIC)
 	{ NULL, NULL, NULL }
 };
 
 static zend_object_handlers xiddomdocument_object_handlers;
-
 
 PHPAPI zend_class_entry *xydiff_exception_ce;
 
@@ -120,6 +109,12 @@ void register_xiddomdocument(TSRMLS_DC)
 	zend_class_entry **pce;
 	if (zend_hash_find(CG(class_table), "domdocument", sizeof("domdocument"), (void **) &pce) == FAILURE) {
 		return;
+	}
+	zend_class_entry **xydiff_exception_ce_ptr;
+	if (zend_hash_find(CG(class_table), "xydiffexception", sizeof("xydiffexception"), (void **) &xydiff_exception_ce_ptr) == FAILURE) {
+		xydiff_exception_ce = zend_exception_get_default(TSRMLS_C);
+	} else {
+		xydiff_exception_ce = xydiff_exception_ce_ptr[0];
 	}
 	INIT_CLASS_ENTRY(ce, "XIDDOMDocument", xiddomdocument_methods);
 	ce.create_object = xiddomdocument_object_create;
@@ -189,7 +184,27 @@ ZEND_METHOD(xiddomdocument, getXidMap)
 	xiddoc = get_xiddomdocument(intern);
 	const char *xidmap = xiddoc->getXidMap().String().c_str();
 	RETVAL_STRINGL(xidmap, strlen(xidmap), true);
+}
 
+ZEND_METHOD(xiddomdocument, setXidMap)
+{
+	zval *id;
+	char *xidmap;
+	int xidmap_len;
+	php_libxml_node_object *intern;
+	XID_DOMDocument *xiddoc;
+	
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os", &id, xiddomdocument_class_entry, &xidmap, &xidmap_len) == FAILURE) {
+		return;
+	}
+
+	intern = (php_libxml_node_object *) zend_object_store_get_object(id TSRMLS_CC);
+	xiddoc = get_xiddomdocument(intern);
+	try {
+		xiddoc->addXidMap(xidmap);
+	} catch( const DeltaException &e ) {
+		zend_throw_exception(xydiff_exception_ce, e.error, 0 TSRMLS_CC);
+	}
 }
 
 ZEND_METHOD(xiddomdocument, generateXidTaggedDocument)
@@ -219,14 +234,10 @@ ZEND_METHOD(xiddomdocument, generateXidTaggedDocument)
 		
 	}
 	catch( const VersionManagerException &e ) {
-		zend_throw_exception(zend_exception_get_default(TSRMLS_C),
-							 strcat("VersionManagerException: ", e.message.c_str() ),
-							 0 TSRMLS_CC);
+		zend_throw_exception(xydiff_exception_ce, strdup(e.message.c_str()), 0 TSRMLS_CC);
 	}
 	catch( const DOMException &e ) {
-		zend_throw_exception(zend_exception_get_default(TSRMLS_C),
-							 strcat("DOMException: ", XMLString::transcode(e.msg) ),
-							 0 TSRMLS_CC);
+		zend_throw_exception(xydiff_exception_ce, XMLString::transcode(e.msg), 0 TSRMLS_CC);
 	}
 
 }
@@ -280,7 +291,6 @@ ZEND_METHOD(xiddomdocument, __construct)
 		
 	}
 
-	
 	php_libxml_node_object *xml_object = (php_libxml_node_object *) intern;
 	ALLOC_HASHTABLE(xml_object->properties);
 	if (zend_hash_init(xml_object->properties, 50, NULL, (dtor_func_t) propDestructor, 0) == FAILURE) {
@@ -289,8 +299,6 @@ ZEND_METHOD(xiddomdocument, __construct)
 	}
 	
 }
-
-
 
 xmlDocPtr xid_domdocument_to_libxml_domdocument(XID_DOMDocument *xiddoc)
 {
@@ -372,19 +380,12 @@ XID_DOMDocument * libxml_domdocument_to_xid_domdocument(php_libxml_node_object *
 		theParser->getDomConfig()->setParameter(XMLUni::fgDOMErrorHandler, handler);
 		xiddoc = theParser->parse((DOMLSInput *) wrapper);
 	} catch (const XMLException& e) {
-		zend_throw_exception(zend_exception_get_default(TSRMLS_C),
-							 strcat("XMLException: An error occurred during parsing: ",XyLatinStr(e.getMessage()).localForm()),
-							 0 TSRMLS_CC);
+		zend_throw_exception(xydiff_exception_ce, XMLString::transcode(e.getMessage()), 0 TSRMLS_CC);
 	} catch (const DOMException& toCatch) {
 		char* message = XMLString::transcode(toCatch.msg);
-		zend_throw_exception(zend_exception_get_default(TSRMLS_C),
-							 strcat("DOMException: An error occurred during parsing: ",message),
-							 0 TSRMLS_CC);
-		XMLString::release(&message);
+		zend_throw_exception(xydiff_exception_ce, XMLString::transcode(toCatch.msg), 0 TSRMLS_CC);
 	} catch (...) {
-		zend_throw_exception(zend_exception_get_default(TSRMLS_C),
-							 "Unhandled exception in XML parsing",
-							 0 TSRMLS_CC);
+		zend_throw_exception(xydiff_exception_ce, "Unknown error during XML parsing", 0 TSRMLS_CC);
 	}
 	
 	if (size) {

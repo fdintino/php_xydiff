@@ -29,6 +29,7 @@ XID_DOMDocument * get_xiddomdocument(php_libxml_node_object *object);
 ZEND_METHOD(xiddomdocument, __construct);
 ZEND_METHOD(xiddomdocument, __destruct);
 ZEND_METHOD(xiddomdocument, getXidMap);
+ZEND_METHOD(xiddomdocument, setXidMap);
 ZEND_METHOD(xiddomdocument, generateXidTaggedDocument);
 
 XID_DOMDocument * libxml_domdocument_to_xid_domdocument(dom_object *libxml_doc);

@@ -18,16 +18,6 @@
 
 /* $Id: xydiffprocessor.cpp,v 1.16.2.1.2.1.2.1 2009/01/23 11:46:50 fdintino Exp $ */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-extern "C" {
-	#include "php.h"
-	#include "php_ini.h"
-	#include "ext/standard/info.h"
-
-}
 #include "include/php_xydiff.hpp"
 
 #define XYDIFF_CLASS_NAME "XyDiff"

@@ -18,15 +18,7 @@
 
 /* $Id: header,v 1.16.2.1.2.1.2.1 2008/02/07 19:39:50 iliaa Exp $ */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
 
-extern "C" {
-	#include "php.h"
-	#include "php_ini.h"
-	#include "ext/standard/info.h"
-}
 
 
 #include <assert.h>
