@@ -71,10 +71,16 @@ void xydiffPHPParseHandler::error(const SAXParseException& e) {
 	throw VersionManagerException("xydiffPHPParseHandler", "error", "-");
 }
 void xydiffPHPParseHandler::fatalError(const SAXParseException& e) {
-	std::cerr << "\n(GF) Fatal Error at (file " << XMLString::transcode(e.getSystemId())
-	<< ", line " << e.getLineNumber()
-	<< ", char " << e.getColumnNumber()
-	<< "): " << XMLString::transcode(e.getMessage()) << std::endl;
+	char *exception;
+	sprintf(exception, "Fatal Error at (file %s, line %d, char %d): %s\n",
+			XMLString::transcode(e.getSystemId()),
+			e.getLineNumber(),
+			e.getColumnNumber(),
+			XMLString::transcode(e.getMessage()));
+	zend_throw_exception(xydiff_exception_ce,
+						 exception,
+						 0 TSRMLS_CC);
+	delete [] exception;
 	throw VersionManagerException("xydiffPHPParseHandler", "fatal error", "-");
 }
 void xydiffPHPParseHandler::warning(const SAXParseException& e) {

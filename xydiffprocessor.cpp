@@ -260,7 +260,6 @@ ZEND_METHOD(xydiff, createDelta)
 								 0 TSRMLS_CC);
 			RETURN_FALSE;
 		}
-
 		XyDOMDelta* domDeltaCreate = new XyDOMDelta(intern->xiddoc1, intern->xiddoc2);
 		XID_DOMDocument *deltaDoc = domDeltaCreate->createDelta();
 		intern->libxml_delta_doc = xid_domdocument_to_libxml_domdocument(deltaDoc);

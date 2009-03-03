@@ -28,10 +28,10 @@ function test_xydiff() {
 	$xydiff = new XyDiff();
 	$xydiff->setStartDocument($dom1);
 	$xydiff->setEndDocument($dom2);
-
 	$diffed = $xydiff->createDelta();
 	echo $diffed->saveXML();
-	echo $dom2->getXidMap();
+	echo $dom1->getXidMap(),"\n";
+	echo $dom2->getXidMap(),"\n";
 	
 	$xidtagged = $dom2->generateXidTaggedDocument();
 	echo $xidtagged->saveXML();

@@ -154,9 +154,10 @@ void xiddomdocument_sync_with_libxml(php_libxml_node_object *libxml_object)
 XID_DOMDocument * get_xiddomdocument(php_libxml_node_object *object)
 {
 	uintptr_t *xiddocptr;
-	zend_hash_find(object->properties, "xiddoc", sizeof("xiddoc"), (void **) &xiddocptr );
-	if (xiddocptr != NULL) {
+	if (zend_hash_find(object->properties, "xiddoc", sizeof("xiddoc"), (void **) &xiddocptr ) == SUCCESS) {
 		return (XID_DOMDocument *) *xiddocptr;
+	} else {
+		return (XID_DOMDocument *) NULL;
 	}
 }
 
@@ -196,7 +197,27 @@ ZEND_METHOD(xiddomdocument, getXidMap)
 
 	intern = (php_libxml_node_object *) zend_object_store_get_object(id TSRMLS_CC);
 	xiddoc = get_xiddomdocument(intern);
-	const char *xidmap = xiddoc->getXidMap().String().c_str();
+	if (xiddoc == NULL) {
+		RETURN_STRINGL("", 0, true);
+	}
+	const char *xidmap;
+	try {
+//		DOMNode *xiddocRootElement = (DOMNode *) xiddoc->getDocumentElement();
+//		xiddoc->getXidMap().SetRootElement( xiddocRootElement );
+		xidmap = xiddoc->getXidMap().String().c_str();		
+	}
+	catch ( const DOMException &e ) {
+		zend_throw_exception(xy_dom_exception_ce, XMLString::transcode(e.msg), 0 TSRMLS_CC);
+	}
+	catch ( const DeltaException &e ) {
+		zend_throw_exception(xydiff_exception_ce, e.error, 0 TSRMLS_CC);
+	}
+	catch ( const VersionManagerException &e ) {
+		zend_throw_exception(xydiff_exception_ce, strdup((e.context+": " +e.message).c_str()), 0 TSRMLS_CC);
+	}
+	catch ( ... ) {
+		zend_throw_exception(xydiff_exception_ce, "Unexpected exception occurred", 0 TSRMLS_CC);
+	}
 	RETVAL_STRINGL(xidmap, strlen(xidmap), true);
 }
 
@@ -214,14 +235,23 @@ ZEND_METHOD(xiddomdocument, setXidMap)
 
 	intern = (php_libxml_node_object *) zend_object_store_get_object(id TSRMLS_CC);
 	xiddoc = get_xiddomdocument(intern);
-	try {
-		xiddoc->addXidMap(xidmap);
-	} catch( const DeltaException &e ) {
-		zend_throw_exception(xydiff_exception_ce, e.error, 0 TSRMLS_CC);
-	} catch (const XIDMapException &e ) {
-		zend_throw_exception(xydiff_exception_ce, strdup((e.context+": " +e.message).c_str()), 0 TSRMLS_CC);
-	} catch ( ... ) {
-		zend_throw_exception(xydiff_exception_ce, "Unexpected exception while setting XidMap", 0 TSRMLS_CC);
+	if (xiddoc == NULL) {
+		xiddomdocument_sync_with_libxml(intern);
+		xiddoc = get_xiddomdocument(intern);
+	}
+	if (xiddoc != NULL) {
+		try {
+			xiddoc->addXidMap(xidmap);
+		} catch( const DeltaException &e ) {
+			zend_throw_exception(xydiff_exception_ce, e.error, 0 TSRMLS_CC);
+		} catch (const XIDMapException &e ) {
+			zend_throw_exception(xydiff_exception_ce, strdup((e.context+": " +e.message).c_str()), 0 TSRMLS_CC);
+		} catch ( ... ) {
+			zend_throw_exception(xydiff_exception_ce, "Unexpected exception while setting XidMap", 0 TSRMLS_CC);
+		}
+		RETURN_TRUE;
+	} else {
+		RETURN_FALSE;
 	}
 }
 
@@ -244,15 +274,10 @@ ZEND_METHOD(xiddomdocument, generateXidTaggedDocument)
 		if (root!=NULL) Restricted::XidTagSubtree(d, root);
 		xmlDocPtr libxmldoc = xid_domdocument_to_libxml_domdocument(d);
 		
-		//d->release();
-		//delete d;
 		if (!libxmldoc)
 			RETURN_FALSE;
 		DOM_RET_OBJ(rv, (xmlNodePtr) libxmldoc, &ret, NULL);
 		
-	}
-	catch( const VersionManagerException &e ) {
-		zend_throw_exception(xydiff_exception_ce, strdup((e.context+": " +e.message).c_str()), 0 TSRMLS_CC);
 	}
 	catch( const DOMException &e ) {
 		zend_throw_exception(xy_dom_exception_ce, XMLString::transcode(e.msg), 0 TSRMLS_CC);
@@ -260,8 +285,11 @@ ZEND_METHOD(xiddomdocument, generateXidTaggedDocument)
 	catch ( const DeltaException &e ) {
 		zend_throw_exception(xydiff_exception_ce, e.error, 0 TSRMLS_CC);
 	}
+	catch( const VersionManagerException &e ) {
+		zend_throw_exception(xydiff_exception_ce, strdup((e.context+": " +e.message).c_str()), 0 TSRMLS_CC);
+	}
 	catch ( ... ) {
-		zend_throw_exception(xydiff_exception_ce, "Unknown error", 0 TSRMLS_CC);
+		zend_throw_exception(xydiff_exception_ce, "Unexpected exception occurred", 0 TSRMLS_CC);
 	}
 }
 
