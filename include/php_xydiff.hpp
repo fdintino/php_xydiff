@@ -31,6 +31,14 @@ extern "C" {
 #include "ext/standard/info.h"
 }
 
+#if !defined(_WIN32) && !defined(_WIN64)
+
+#include <stdbool.h>
+#include <unistd.h>
+#include <sys/sysctl.h>
+
+#endif
+
 extern zend_module_entry xydiff_module_entry;
 #define phpext_xydiff_ptr &xydiff_module_entry
 
@@ -91,7 +99,6 @@ PHP_MINFO_FUNCTION(xydiff);
 
 
 
-const char * get_libxml_dom_string(php_libxml_node_object *doc, xmlChar* &mem, int &size);
 static xmlDocPtr string_to_dom_document(const char *source);
 char * xiddomdocument_to_string(xercesc::DOMDocument *doc);
 

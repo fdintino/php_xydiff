@@ -1,0 +1,39 @@
+// $Id: config.w32,v 1.0 2009/03/03 14:28:00 fdintino Exp $
+// vim:ft=javascript
+
+ARG_WITH("xydiff", "XyDiff support", "no");
+if (PHP_XYDIFF != "no") {
+	if (!CHECK_LIB("libXyDelta.lib", "xydiff")) {
+		WARNING("Could not find libXyDelta.lib");
+	}
+	else if (!CHECK_HEADER_ADD_INCLUDE("include/XID_DOMDocument.hpp", "CFLAGS_XYDIFF")) {
+		WARNING("Could not find header XID_DOMDocument.hpp");
+	}
+	else if (!CHECK_HEADER_ADD_INCLUDE("libxml/parser.h", "CFLAGS_XYDIFF")) {
+		WARNING("Could not find header libxml/parser.h");
+	}
+	else if (!CHECK_LIB("xerces-c_3.lib", "xydiff")) {
+		WARNING("Could not find xerces-c_3.lib");
+	}
+	else if (!CHECK_HEADER_ADD_INCLUDE("xercesc/dom/DOM.hpp", "CFLAGS_XYDIFF")) {
+		WARNING("Could not find header xercesc/dom/DOM.hpp");
+	}
+	// if (CHECK_LIB("libXyDelta.lib", "xydiff") &&
+	// 	CHECK_HEADER_ADD_INCLUDE("XID_DOMDocument.hpp", "CFLAGS_XYDIFF") &&
+	// 	CHECK_HEADER_ADD_INCLUDE("libxml/parser.h", "CFLAGS_XYDIFF") &&
+	// 	ADD_EXTENSION_DEP('xydiff', 'libxml') &&
+	// 	ADD_EXTENSION_DEP('xydiff', 'dom') &&
+	// 	CHECK_LIB("xerces-c_3.lib", "xydiff") &&
+	// 	CHECK_HEADER_ADD_INCLUDE("xercesc/dom/DOM.hpp", "CFLAGS_XYDIFF")) {
+	else {
+			var cflags = "/EHsc";
+			AC_DEFINE("HAVE_XYDIFF", 1, "XyDiff support");
+			EXTENSION("xydiff", "xydiff.cpp \
+				                 xydiffprocessor.cpp \
+				                 xiddomdocument.cpp \
+				                 xydiff_error_handler.cpp", 1, cflags);					
+	}
+	// } else {
+	// 	WARNING("Could not enable xydiff extension");
+	// }
+}

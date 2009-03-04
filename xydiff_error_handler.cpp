@@ -21,28 +21,29 @@ extern "C" {
 
 XERCES_CPP_NAMESPACE_USE
 
-static const zend_function_entry xydiff_exception_functions[] = {
+static zend_function_entry xydiff_exception_functions[] = {
 	{NULL, NULL, NULL}
 };
 static zend_class_entry *xydiff_exception_ce;
 static zend_class_entry *xy_xml_exception_ce;
 static zend_class_entry *xy_dom_exception_ce;
 
-void register_xydiff_exception()
+void register_xydiff_exception(TSRMLS_D)
 {
 	zend_class_entry ce_xydiff;
 	INIT_CLASS_ENTRY(ce_xydiff, "XyDiffException", xydiff_exception_functions);
-	xydiff_exception_ce = zend_register_internal_class_ex(&ce_xydiff TSRMLS_CC, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
+	xydiff_exception_ce = zend_register_internal_class_ex(&ce_xydiff, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
 	zend_class_entry ce_xyxml;
 	INIT_CLASS_ENTRY(ce_xyxml, "XyXMLException", xydiff_exception_functions);
-	xy_xml_exception_ce = zend_register_internal_class_ex(&ce_xyxml TSRMLS_CC, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
+	xy_xml_exception_ce = zend_register_internal_class_ex(&ce_xyxml, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
 	zend_class_entry ce_xydom;
 	INIT_CLASS_ENTRY(ce_xydom, "XyDOMException", xydiff_exception_functions);
-	xy_dom_exception_ce = zend_register_internal_class_ex(&ce_xydom TSRMLS_CC, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
+	xy_dom_exception_ce = zend_register_internal_class_ex(&ce_xydom, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
 }
 
 bool xydiffPHPParseHandler::handleError(const DOMError& domError)
 {
+	TSRMLS_FETCH();
 	DOMLocator* locator = domError.getLocation();
 	char *exception;
 	sprintf(exception, "Error at (file %s, line %d, char %d): %s\n",
@@ -58,6 +59,7 @@ bool xydiffPHPParseHandler::handleError(const DOMError& domError)
 }
 
 void xydiffPHPParseHandler::error(const SAXParseException& e) {
+	TSRMLS_FETCH();
 	char *exception;
 	sprintf(exception, "Error at (file %s, line %d, char %d): %s\n",
 			XMLString::transcode(e.getSystemId()),
@@ -71,6 +73,7 @@ void xydiffPHPParseHandler::error(const SAXParseException& e) {
 	throw VersionManagerException("xydiffPHPParseHandler", "error", "-");
 }
 void xydiffPHPParseHandler::fatalError(const SAXParseException& e) {
+	TSRMLS_FETCH();
 	char *exception;
 	sprintf(exception, "Fatal Error at (file %s, line %d, char %d): %s\n",
 			XMLString::transcode(e.getSystemId()),

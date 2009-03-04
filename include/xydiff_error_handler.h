@@ -22,7 +22,7 @@
 #include "xercesc/sax/SAXParseException.hpp"
 
 #include "Tools.hpp"
-void register_xydiff_exception();
+void register_xydiff_exception(TSRMLS_D);
 
 class xydiffPHPParseHandler : public xercesc::DOMErrorHandler {
 public:

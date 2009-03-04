@@ -3,10 +3,8 @@
 #define XYDIFF_CLASS_NAME "XyDiff"
 
 #include <assert.h>
-#include <stdbool.h>
+
 #include <sys/types.h>
-#include <unistd.h>
-#include <sys/sysctl.h>
 
 #include "xercesc/framework/MemBufInputSource.hpp"
 #include "xercesc/dom/DOMImplementation.hpp"
@@ -44,12 +42,12 @@ static zend_function_entry xiddomdocument_methods[] = {
 
 static zend_object_handlers xiddomdocument_object_handlers;
 
-PHPAPI zend_class_entry *xydiff_exception_ce;
-PHPAPI zend_class_entry *xy_xml_exception_ce;
-PHPAPI zend_class_entry *xy_dom_exception_ce;
+static zend_class_entry *xydiff_exception_ce;
+static zend_class_entry *xy_xml_exception_ce;
+static zend_class_entry *xy_dom_exception_ce;
 
 
-void register_xiddomdocument(TSRMLS_DC)
+void register_xiddomdocument(TSRMLS_D)
 {
 	// Load Exception classes
 	// XyDiffException
@@ -144,9 +142,9 @@ static void xiddomdocument_object_clone(void *object, void **object_clone TSRMLS
 	//(*intern_clone)->ptr = XID_DOMDocument::copy( (XID_DOMDocument *)intern->ptr , 1);
 }
 
-void xiddomdocument_sync_with_libxml(php_libxml_node_object *libxml_object)
+void xiddomdocument_sync_with_libxml(php_libxml_node_object *libxml_object TSRMLS_DC)
 {
-	XID_DOMDocument *xiddoc = libxml_domdocument_to_xid_domdocument(libxml_object);
+	XID_DOMDocument *xiddoc = libxml_domdocument_to_xid_domdocument(libxml_object TSRMLS_CC);
 	uintptr_t xiddocptr = (uintptr_t) xiddoc;
 	zend_hash_update(libxml_object->properties, "xiddoc", sizeof("xiddoc"), &xiddocptr, sizeof(uintptr_t), NULL);		
 }
@@ -200,11 +198,10 @@ ZEND_METHOD(xiddomdocument, getXidMap)
 	if (xiddoc == NULL) {
 		RETURN_STRINGL("", 0, true);
 	}
-	const char *xidmap;
-	try {
-//		DOMNode *xiddocRootElement = (DOMNode *) xiddoc->getDocumentElement();
-//		xiddoc->getXidMap().SetRootElement( xiddocRootElement );
-		xidmap = xiddoc->getXidMap().String().c_str();		
+	char *xidmap;
+	try {		
+		xidmap = new char [ xiddoc->getXidMap().String().length() + 1 ];
+		strcpy(xidmap, xiddoc->getXidMap().String().c_str());
 	}
 	catch ( const DOMException &e ) {
 		zend_throw_exception(xy_dom_exception_ce, XMLString::transcode(e.msg), 0 TSRMLS_CC);
@@ -236,7 +233,7 @@ ZEND_METHOD(xiddomdocument, setXidMap)
 	intern = (php_libxml_node_object *) zend_object_store_get_object(id TSRMLS_CC);
 	xiddoc = get_xiddomdocument(intern);
 	if (xiddoc == NULL) {
-		xiddomdocument_sync_with_libxml(intern);
+		xiddomdocument_sync_with_libxml(intern TSRMLS_CC);
 		xiddoc = get_xiddomdocument(intern);
 	}
 	if (xiddoc != NULL) {
@@ -272,7 +269,7 @@ ZEND_METHOD(xiddomdocument, generateXidTaggedDocument)
 		
 		DOMNode* root = (DOMNode *) d->getDocumentElement();
 		if (root!=NULL) Restricted::XidTagSubtree(d, root);
-		xmlDocPtr libxmldoc = xid_domdocument_to_libxml_domdocument(d);
+		xmlDocPtr libxmldoc = xid_domdocument_to_libxml_domdocument(d TSRMLS_CC);
 		
 		if (!libxmldoc)
 			RETURN_FALSE;
@@ -351,7 +348,7 @@ ZEND_METHOD(xiddomdocument, __construct)
 	
 }
 
-xmlDocPtr xid_domdocument_to_libxml_domdocument(XID_DOMDocument *xiddoc)
+xmlDocPtr xid_domdocument_to_libxml_domdocument(XID_DOMDocument *xiddoc TSRMLS_DC)
 {
 	DOMImplementation *impl = DOMImplementationRegistry::getDOMImplementation(XMLString::transcode("LS"));
 	DOMLSSerializer* theSerializer = ((DOMImplementationLS*)impl)->createLSSerializer();
@@ -404,7 +401,7 @@ xmlDocPtr xid_domdocument_to_libxml_domdocument(XID_DOMDocument *xiddoc)
 	return newdoc;
 }
 
-XID_DOMDocument * libxml_domdocument_to_xid_domdocument(php_libxml_node_object *libxml_doc)
+XID_DOMDocument * libxml_domdocument_to_xid_domdocument(php_libxml_node_object *libxml_doc TSRMLS_DC)
 {
 	xmlChar *mem = NULL;
 	int size = 0;

@@ -23,10 +23,7 @@
 #define XYDIFF_CLASS_NAME "XyDiff"
 
 #include <assert.h>
-#include <stdbool.h>
 #include <sys/types.h>
-#include <unistd.h>
-#include <sys/sysctl.h>
 
 #include "xercesc/framework/MemBufInputSource.hpp"
 #include "xercesc/dom/DOMImplementation.hpp"
@@ -63,7 +60,7 @@ static zend_object_handlers xydiff_object_handlers;
 
 static zend_class_entry *xydiff_exception_ce;
 
-void register_xydiff()
+void register_xydiff(TSRMLS_D)
 {
 	memcpy(&xydiff_object_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 	zend_class_entry ce;
@@ -118,20 +115,6 @@ static void xydiff_object_clone(void *object, void **object_clone TSRMLS_DC)
 	(*intern_clone)->xiddoc1 = XID_DOMDocument::copy(intern->xiddoc1, 1);
 	(*intern_clone)->xiddoc2 = XID_DOMDocument::copy(intern->xiddoc2, 1);
 }
-
-
-const char * get_libxml_dom_string(php_libxml_node_object *doc, xmlChar* &mem, int &size)
-{
-	dom_doc_propsptr doc_props;
-	int format = 0;
-	
-	xmlDocPtr docp = (xmlDocPtr) doc->document->ptr;
-	doc_props = dom_get_doc_props(doc);
-	format = doc_props->formatoutput;
-	xmlDocDumpFormatMemory(docp, &mem, &size, format);
-	efree(doc_props);
-}
-
 
 ZEND_METHOD(xydiff, __construct)
 {
@@ -188,7 +171,7 @@ ZEND_METHOD(xydiff, setStartDocument)
 		}
 		
 		
-		xiddomdocument_sync_with_libxml(xml_object);
+		xiddomdocument_sync_with_libxml(xml_object TSRMLS_CC);
 		intern->xiddoc1 = get_xiddomdocument(xml_object);
 	}
 }
@@ -231,7 +214,7 @@ ZEND_METHOD(xydiff, setEndDocument)
 			php_error_docref(NULL TSRMLS_CC, E_WARNING, "Invalid Document");
 			return;
 		}
-		xiddomdocument_sync_with_libxml(xml_object);
+		xiddomdocument_sync_with_libxml(xml_object TSRMLS_CC);
 		intern->xiddoc2 = get_xiddomdocument(xml_object);
 	}
 }
@@ -262,7 +245,7 @@ ZEND_METHOD(xydiff, createDelta)
 		}
 		XyDOMDelta* domDeltaCreate = new XyDOMDelta(intern->xiddoc1, intern->xiddoc2);
 		XID_DOMDocument *deltaDoc = domDeltaCreate->createDelta();
-		intern->libxml_delta_doc = xid_domdocument_to_libxml_domdocument(deltaDoc);
+		intern->libxml_delta_doc = xid_domdocument_to_libxml_domdocument(deltaDoc TSRMLS_CC);
 		deltaDoc->release();
 		delete deltaDoc;
 		delete domDeltaCreate;

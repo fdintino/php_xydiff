@@ -22,15 +22,12 @@
 
 
 #include <assert.h>
-#include <stdbool.h>
 #include <sys/types.h>
-#include <unistd.h>
-#include <sys/sysctl.h>
 
-#include "php_xydiff.hpp"
-#include "xydiffprocessor.h"
-#include "xiddomdocument.h"
-#include "xydiff_error_handler.h"
+#include "include/php_xydiff.hpp"
+#include "include/xydiffprocessor.h"
+#include "include/xiddomdocument.h"
+#include "include/xydiff_error_handler.h"
 
 //static zend_object_handlers xydiff_object_handlers;
 
@@ -43,22 +40,22 @@ ZEND_DECLARE_MODULE_GLOBALS(xydiff)
 /* True global resources - no need for thread safety here */
 static int le_xydiff;
 
-const zend_function_entry xydiff_functions[] = {
+zend_function_entry xydiff_functions[] = {
 	{NULL, NULL, NULL}	/* Must be the last line in xydiff_functions[] */
 };
 
 
-#if ZEND_MODULE_API_NO >= 220050617 
+#if ZEND_MODULE_API_NO >= 20050617 
 static zend_module_dep xydiff_deps[] = {
-	ZEND_MODULE_REQUIRED("dom")
+	ZEND_MOD_REQUIRED("dom")
 	{NULL, NULL, NULL}
-}
+};
 #endif
 
 
 
 zend_module_entry xydiff_module_entry = {
-#if ZEND_MODULE_API_NO >= 220050617 
+#if ZEND_MODULE_API_NO >= 20050617 
 	STANDARD_MODULE_HEADER_EX, NULL,
 	xydiff_deps,
 #elif ZEND_MODULE_API_NO >= 20010901
@@ -118,9 +115,9 @@ PHP_MINIT_FUNCTION(xydiff)
 							 0 TSRMLS_CC);
 	}
 	// The XyDiffException class has to be registered first for the other two classes to access it
-	register_xydiff_exception(TSRMLS_CC);
-	register_xydiff(TSRMLS_CC);
-	register_xiddomdocument(TSRMLS_CC);
+	register_xydiff_exception(TSRMLS_C);
+	register_xydiff(TSRMLS_C);
+	register_xiddomdocument(TSRMLS_C);
 	
 	/* If you have INI entries, uncomment these lines 
 	REGISTER_INI_ENTRIES();

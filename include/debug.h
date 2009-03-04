@@ -1,3 +1,5 @@
+#if !defined(_WIN32) && !defined(_WIN64)
+
 #include <sys/sysctl.h>
 
 static bool AmIBeingDebugged(void)
@@ -32,3 +34,4 @@ static bool AmIBeingDebugged(void)
 	
     return ( (info.kp_proc.p_flag & P_TRACED) != 0 );
 }
+#endif
