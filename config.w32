@@ -18,13 +18,6 @@ if (PHP_XYDIFF != "no") {
 	else if (!CHECK_HEADER_ADD_INCLUDE("xercesc/dom/DOM.hpp", "CFLAGS_XYDIFF")) {
 		WARNING("Could not find header xercesc/dom/DOM.hpp");
 	}
-	// if (CHECK_LIB("libXyDelta.lib", "xydiff") &&
-	// 	CHECK_HEADER_ADD_INCLUDE("XID_DOMDocument.hpp", "CFLAGS_XYDIFF") &&
-	// 	CHECK_HEADER_ADD_INCLUDE("libxml/parser.h", "CFLAGS_XYDIFF") &&
-	// 	ADD_EXTENSION_DEP('xydiff', 'libxml') &&
-	// 	ADD_EXTENSION_DEP('xydiff', 'dom') &&
-	// 	CHECK_LIB("xerces-c_3.lib", "xydiff") &&
-	// 	CHECK_HEADER_ADD_INCLUDE("xercesc/dom/DOM.hpp", "CFLAGS_XYDIFF")) {
 	else {
 			var cflags = "/EHsc";
 			AC_DEFINE("HAVE_XYDIFF", 1, "XyDiff support");
@@ -33,7 +26,4 @@ if (PHP_XYDIFF != "no") {
 				                 xiddomdocument.cpp \
 				                 xydiff_error_handler.cpp", 1, cflags);					
 	}
-	// } else {
-	// 	WARNING("Could not enable xydiff extension");
-	// }
 }
