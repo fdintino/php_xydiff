@@ -1,9 +1,6 @@
 #include "include/php_xydiff.hpp"
 
-#define XYDIFF_CLASS_NAME "XyDiff"
-
 #include <assert.h>
-
 #include <sys/types.h>
 
 #include "xercesc/framework/MemBufInputSource.hpp"
@@ -142,11 +139,16 @@ static void xiddomdocument_object_clone(void *object, void **object_clone TSRMLS
 	//(*intern_clone)->ptr = XID_DOMDocument::copy( (XID_DOMDocument *)intern->ptr , 1);
 }
 
-void xiddomdocument_sync_with_libxml(php_libxml_node_object *libxml_object TSRMLS_DC)
+void xiddomdocument_sync_with_libxml(php_libxml_node_object *libxml_object TSRMLS_DC, bool hasNewXidmap)
 {
-	XID_DOMDocument *xiddoc = libxml_domdocument_to_xid_domdocument(libxml_object TSRMLS_CC);
+	XID_DOMDocument *xiddoc = libxml_domdocument_to_xid_domdocument(libxml_object, hasNewXidmap TSRMLS_CC);
 	uintptr_t xiddocptr = (uintptr_t) xiddoc;
-	zend_hash_update(libxml_object->properties, "xiddoc", sizeof("xiddoc"), &xiddocptr, sizeof(uintptr_t), NULL);		
+	uintptr_t *oldxiddocptr;
+	if (zend_hash_find(libxml_object->properties, "xiddoc", sizeof("xiddoc"), (void **) &oldxiddocptr ) == SUCCESS) {
+		XID_DOMDocument *oldxiddoc = (XID_DOMDocument *) *oldxiddocptr;
+		oldxiddoc->release();
+	}
+	zend_hash_update(libxml_object->properties, "xiddoc", sizeof("xiddoc"), &xiddocptr, sizeof(uintptr_t), NULL);
 }
 
 XID_DOMDocument * get_xiddomdocument(php_libxml_node_object *object)
@@ -175,9 +177,23 @@ ZEND_METHOD(xiddomdocument, __destruct)
 		return;
 	}
 	intern = (php_libxml_node_object *) zend_object_store_get_object(id TSRMLS_CC);
-	xiddoc = get_xiddomdocument(intern);
-	if (xiddoc != NULL) {
-		xiddoc->release();
+
+	if (zend_hash_exists(intern->properties, "xiddoc", sizeof("xiddoc"))) {
+		xiddoc = get_xiddomdocument(intern);
+		if (xiddoc != NULL) {
+			xiddoc->release();
+		}		
+		zend_hash_del(intern->properties, "xiddoc", sizeof("xiddoc"));
+	}
+	
+	if (zend_hash_exists(intern->properties, "xidmap", sizeof("xidmap")) == 1) {
+		zval** xidmapval;
+		if (zend_hash_find(intern->properties, "xidmap", sizeof("xidmap"), (void**)&xidmapval) == SUCCESS) {
+			char *xidmapStr = Z_STRVAL_PP(xidmapval);
+			efree(xidmapStr);
+			FREE_ZVAL(*xidmapval);
+		}
+		zend_hash_del(intern->properties, "xidmap", sizeof("xidmap"));
 	}
 	zend_hash_destroy(intern->properties);
 	FREE_HASHTABLE(intern->properties);
@@ -205,15 +221,19 @@ ZEND_METHOD(xiddomdocument, getXidMap)
 	}
 	catch ( const DOMException &e ) {
 		zend_throw_exception(xy_dom_exception_ce, XMLString::transcode(e.msg), 0 TSRMLS_CC);
+		RETURN_FALSE;
 	}
 	catch ( const DeltaException &e ) {
 		zend_throw_exception(xydiff_exception_ce, e.error, 0 TSRMLS_CC);
+		RETURN_FALSE;
 	}
 	catch ( const VersionManagerException &e ) {
 		zend_throw_exception(xydiff_exception_ce, strdup((e.context+": " +e.message).c_str()), 0 TSRMLS_CC);
+		RETURN_FALSE;
 	}
 	catch ( ... ) {
 		zend_throw_exception(xydiff_exception_ce, "Unexpected exception occurred", 0 TSRMLS_CC);
+		RETURN_FALSE;
 	}
 	RETVAL_STRINGL(xidmap, strlen(xidmap), true);
 }
@@ -224,32 +244,46 @@ ZEND_METHOD(xiddomdocument, setXidMap)
 	char *xidmap;
 	int xidmap_len;
 	php_libxml_node_object *intern;
-	XID_DOMDocument *xiddoc;
 	
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Os", &id, xiddomdocument_class_entry, &xidmap, &xidmap_len) == FAILURE) {
 		return;
 	}
-
 	intern = (php_libxml_node_object *) zend_object_store_get_object(id TSRMLS_CC);
-	xiddoc = get_xiddomdocument(intern);
-	if (xiddoc == NULL) {
-		xiddomdocument_sync_with_libxml(intern TSRMLS_CC);
-		xiddoc = get_xiddomdocument(intern);
-	}
-	if (xiddoc != NULL) {
-		try {
-			xiddoc->addXidMap(xidmap);
-		} catch( const DeltaException &e ) {
-			zend_throw_exception(xydiff_exception_ce, e.error, 0 TSRMLS_CC);
-		} catch (const XIDMapException &e ) {
-			zend_throw_exception(xydiff_exception_ce, strdup((e.context+": " +e.message).c_str()), 0 TSRMLS_CC);
-		} catch ( ... ) {
-			zend_throw_exception(xydiff_exception_ce, "Unexpected exception while setting XidMap", 0 TSRMLS_CC);
-		}
+	if (xiddomdocument_set_xidmap(intern, xidmap TSRMLS_CC) == SUCCESS) {
 		RETURN_TRUE;
 	} else {
 		RETURN_FALSE;
 	}
+}
+
+int xiddomdocument_set_xidmap(php_libxml_node_object *libxml_object, char *xidmap TSRMLS_DC)
+{
+	XID_DOMDocument *xiddoc = NULL;
+	zval *xidmapval;
+
+	xiddoc = get_xiddomdocument(libxml_object);
+	if (xiddoc == NULL) {
+		xiddomdocument_sync_with_libxml(libxml_object TSRMLS_CC);
+		xiddoc = get_xiddomdocument(libxml_object);
+	}
+	if (xiddoc != NULL) {
+		// Remove old xidmap from properties HashTable if it exists
+		zval** oldxidmapval;
+		if (zend_hash_find(libxml_object->properties, "xidmap", sizeof("xidmap"), (void**)&xidmapval) == SUCCESS) {
+			char *oldxidmapStr = Z_STRVAL_PP(xidmapval);
+			efree(oldxidmapStr);
+			FREE_ZVAL(*oldxidmapval);
+			zend_hash_del(libxml_object->properties, "xidmap", strlen("xidmap"));
+		}
+		MAKE_STD_ZVAL(xidmapval);
+		ZVAL_STRING(xidmapval, xidmap, 1);
+		ZEND_SET_SYMBOL(libxml_object->properties, "xidmap", xidmapval);
+		xiddomdocument_sync_with_libxml(libxml_object TSRMLS_CC, true);
+		if (zend_hash_exists(libxml_object->properties, "xidmap", sizeof("xidmap"))) {
+			return SUCCESS;
+		}
+	}
+	return FAILURE;
 }
 
 ZEND_METHOD(xiddomdocument, generateXidTaggedDocument)
@@ -283,7 +317,7 @@ ZEND_METHOD(xiddomdocument, generateXidTaggedDocument)
 		zend_throw_exception(xydiff_exception_ce, e.error, 0 TSRMLS_CC);
 	}
 	catch( const VersionManagerException &e ) {
-		zend_throw_exception(xydiff_exception_ce, strdup((e.context+": " +e.message).c_str()), 0 TSRMLS_CC);
+		zend_throw_exception(xydiff_exception_ce, estrdup((e.context+": " +e.message).c_str()), 0 TSRMLS_CC);
 	}
 	catch ( ... ) {
 		zend_throw_exception(xydiff_exception_ce, "Unexpected exception occurred", 0 TSRMLS_CC);
@@ -334,7 +368,6 @@ ZEND_METHOD(xiddomdocument, __construct)
 		} else {
 			zend_call_method_with_0_params(&self, ce, &ctor, ZEND_CONSTRUCTOR_FUNC_NAME, NULL);
 		}
-		
 	}
 
 	// Initialize 'properties' HashTable, which we use to store the pointer to the associated C++
@@ -345,7 +378,6 @@ ZEND_METHOD(xiddomdocument, __construct)
 		FREE_HASHTABLE(xml_object->properties);
 		return;
 	}
-	
 }
 
 xmlDocPtr xid_domdocument_to_libxml_domdocument(XID_DOMDocument *xiddoc TSRMLS_DC)
@@ -401,7 +433,7 @@ xmlDocPtr xid_domdocument_to_libxml_domdocument(XID_DOMDocument *xiddoc TSRMLS_D
 	return newdoc;
 }
 
-XID_DOMDocument * libxml_domdocument_to_xid_domdocument(php_libxml_node_object *libxml_doc TSRMLS_DC)
+XID_DOMDocument * libxml_domdocument_to_xid_domdocument(php_libxml_node_object *libxml_obj, bool hasNewXidmap TSRMLS_DC)
 {
 	xmlChar *mem = NULL;
 	int size = 0;
@@ -410,8 +442,8 @@ XID_DOMDocument * libxml_domdocument_to_xid_domdocument(php_libxml_node_object *
 	int format = 0;
 	xmlDocPtr docp;
 	
-	docp = (xmlDocPtr) libxml_doc->document->ptr;
-	doc_props = dom_get_doc_props(libxml_doc);
+	docp = (xmlDocPtr) libxml_obj->document->ptr;
+	doc_props = dom_get_doc_props(libxml_obj);
 	format = doc_props->formatoutput;
 	xmlDocDumpFormatMemory(docp, &mem, &size, format);
 	
@@ -439,7 +471,64 @@ XID_DOMDocument * libxml_domdocument_to_xid_domdocument(php_libxml_node_object *
 	if (size) {
 		xmlFree(mem);
 	}
-	XID_DOMDocument *xiddomdoc = new XID_DOMDocument(xiddoc, NULL, true);
+
+	// Try creating with xidmap if the user has defined one
+	char*  xidmapStr = NULL;
+	zval** xidmapval;
+	XID_DOMDocument* xiddomdoc = NULL;
+	char *errormsg = NULL;
+	if (zend_hash_find(libxml_obj->properties, "xidmap", sizeof("xidmap"), (void**)&xidmapval) == SUCCESS) {
+		xidmapStr = Z_STRVAL_PP(xidmapval);
+		if (xidmapStr != NULL && strlen(xidmapStr) > 0) {
+			try {
+				xiddomdoc = new XID_DOMDocument(xiddoc, xidmapStr, true);
+				return xiddomdoc;
+			}
+			catch ( const DeltaException &e ) {
+				errormsg = estrdup(e.error);
+			} catch ( const XIDMapException &e ) {
+				errormsg = estrdup((e.context+": " +e.message).c_str());
+			} catch ( ... ) {
+				errormsg = estrdup("Unexpected exception while setting XidMap");
+			}
+		}
+	}
+
+	// Create XID_DOMDocument without a user-defined xidmap
+	if (xiddomdoc == NULL) {
+		try {
+			xiddomdoc = new XID_DOMDocument(xiddoc, NULL, true);
+			// If we have a xidmapStr this means that setting the XID_DOMDocument with
+			// the new xidmap value failed
+			if (xidmapStr != NULL && strlen(xidmapStr) > 0) {
+				// If there is already a XID_DOMDocument
+				if (hasNewXidmap) {
+					php_error_docref(NULL TSRMLS_CC, E_WARNING,
+									 "Could not set xidmap, errormsg=%s", errormsg);					
+				} else {
+					php_error_docref(NULL TSRMLS_CC, E_WARNING, 
+									 "XidMap value no longer applicable, resetting to default; errormsg=%s", errormsg);
+				}
+				// Remove old xidmap value, free memory
+				efree(xidmapStr);
+				FREE_ZVAL(*xidmapval);
+				zend_hash_del(libxml_obj->properties, "xidmap", sizeof("xidmap"));
+			}
+		}
+		catch ( const DeltaException &e ) {
+			zend_throw_exception(xydiff_exception_ce, e.error, 0 TSRMLS_CC);
+		}
+		catch ( const XIDMapException &e ) {
+			zend_throw_exception(xydiff_exception_ce, strdup((e.context+": " +e.message).c_str()), 0 TSRMLS_CC);
+		}
+		catch ( ... ) {
+			zend_throw_exception(xydiff_exception_ce, "Unexpected exception while creating XIDDOMDocument", 0 TSRMLS_CC);
+		}
+	}
+	if (errormsg != NULL) {
+		efree(errormsg);
+	}
+
 	return xiddomdoc;
 }
 

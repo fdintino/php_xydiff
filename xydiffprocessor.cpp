@@ -30,6 +30,7 @@
 #include "xercesc/dom/DOMImplementationLS.hpp"
 #include "xercesc/dom/DOMImplementationRegistry.hpp"
 #include "xercesc/dom/DOMDocument.hpp"
+#include "xercesc/dom/DOMElement.hpp"
 #include "xercesc/dom/DOMLSParser.hpp"
 #include "xercesc/dom/DOMLSOutput.hpp"
 #include "xercesc/dom/DOMLSSerializer.hpp"
@@ -151,7 +152,7 @@ ZEND_METHOD(xydiff, setStartDocument)
 		
 		// Do some sanity checks on the DOMDocument that was passed
 		nodep = php_libxml_import_node(docp TSRMLS_CC);
-		if (nodep) {
+		if (nodep != NULL) {
 			if (nodep->doc == NULL) {
 				php_error_docref(NULL TSRMLS_CC, E_WARNING, "Imported Node must have associated Document");
 				RETURN_NULL();
@@ -169,8 +170,7 @@ ZEND_METHOD(xydiff, setStartDocument)
 			php_error_docref(NULL TSRMLS_CC, E_WARNING, "Invalid Document");
 			return;
 		}
-		
-		
+
 		xiddomdocument_sync_with_libxml(xml_object TSRMLS_CC);
 		intern->xiddoc1 = get_xiddomdocument(xml_object);
 	}
@@ -216,6 +216,7 @@ ZEND_METHOD(xydiff, setEndDocument)
 		}
 		xiddomdocument_sync_with_libxml(xml_object TSRMLS_CC);
 		intern->xiddoc2 = get_xiddomdocument(xml_object);
+		intern->doc2 = xml_object;
 	}
 }
 
@@ -246,6 +247,12 @@ ZEND_METHOD(xydiff, createDelta)
 		XyDOMDelta* domDeltaCreate = new XyDOMDelta(intern->xiddoc1, intern->xiddoc2);
 		XID_DOMDocument *deltaDoc = domDeltaCreate->createDelta();
 		intern->libxml_delta_doc = xid_domdocument_to_libxml_domdocument(deltaDoc TSRMLS_CC);
+		// Get the "fromXidMap" attribute in the delta document under first <t> element of the root
+		DOMElement *deltaDocRoot = deltaDoc->getDocumentElement();
+		DOMNode *tNode = deltaDocRoot->getFirstChild();
+		char *xidmap = XMLString::transcode( ((DOMElement *)tNode)->getAttribute(XMLString::transcode("fromXidMap")) );
+		xiddomdocument_set_xidmap((php_libxml_node_object *)intern->doc2, xidmap TSRMLS_CC);
+		std::cout << xidmap << std::endl;		
 		deltaDoc->release();
 		delete deltaDoc;
 		delete domDeltaCreate;

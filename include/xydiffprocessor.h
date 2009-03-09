@@ -5,6 +5,7 @@ typedef struct _xydiff_object {
 	zend_object std;
 	XID_DOMDocument *xiddoc1;
 	XID_DOMDocument *xiddoc2;
+	php_libxml_node_object *doc2;
 	xmlDocPtr libxml_delta_doc;
 	zend_object_handle handle;
 } xydiff_object;
