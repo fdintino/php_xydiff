@@ -16,10 +16,6 @@
   +----------------------------------------------------------------------+
 */
 
-/* $Id: header,v 1.16.2.1.2.1.2.1 2008/02/07 19:39:50 iliaa Exp $ */
-
-
-
 
 #include <assert.h>
 #include <sys/types.h>
@@ -28,17 +24,13 @@
 #include "include/xydiffprocessor.h"
 #include "include/xiddomdocument.h"
 #include "include/xydiff_error_handler.h"
-
-//static zend_object_handlers xydiff_object_handlers;
+#include "include/xydelta.h"
 
 XERCES_CPP_NAMESPACE_USE
 
 /* If you declare any globals in php_xydiff.h uncomment this:
 ZEND_DECLARE_MODULE_GLOBALS(xydiff)
 */
-
-/* True global resources - no need for thread safety here */
-static int le_xydiff;
 
 zend_function_entry xydiff_functions[] = {
 	{NULL, NULL, NULL}	/* Must be the last line in xydiff_functions[] */
@@ -118,6 +110,7 @@ PHP_MINIT_FUNCTION(xydiff)
 	register_xydiff_exception(TSRMLS_C);
 	register_xydiff(TSRMLS_C);
 	register_xiddomdocument(TSRMLS_C);
+	register_xydelta(TSRMLS_C);
 	
 	/* If you have INI entries, uncomment these lines 
 	REGISTER_INI_ENTRIES();

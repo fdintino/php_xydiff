@@ -107,5 +107,6 @@ if test "$PHP_XYDIFF" != "no"; then
 	PHP_NEW_EXTENSION(xydiff, [xydiff.cpp \
 	                           xydiffprocessor.cpp \
 	                           xiddomdocument.cpp \
-	                           xydiff_error_handler.cpp], $ext_shared,,,1)
+	                           xydiff_error_handler.cpp \
+							   xydelta.cpp], $ext_shared,,,1)
 fi
