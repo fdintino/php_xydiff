@@ -1,11 +1,11 @@
 /*
  *  xydelta.cpp
  *  xydiff
- *  Copyright 2009 __MyCompanyName__. All rights reserved.
  */
 
 #include "include/php_xydiff.hpp"
 #include "include/xydelta.h"
+#include "include/xiddomdocument.h"
 #include <zend_interfaces.h>
 
 #define XYDELTA_CLASS_NAME "XyDelta"
@@ -15,17 +15,16 @@ XERCES_CPP_NAMESPACE_USE
 static zend_class_entry *xydelta_ce;
 
 static zend_function_entry xydelta_methods[] = {
-ZEND_ME(xydelta, __construct, NULL, ZEND_ACC_PUBLIC)
-ZEND_ME(xydelta, setStartDocument, NULL, ZEND_ACC_PUBLIC)
-ZEND_ME(xydelta, applyDelta, NULL, ZEND_ACC_PUBLIC)
-{ NULL, NULL, NULL }
+	ZEND_ME(xydelta, __construct, NULL, ZEND_ACC_PUBLIC)
+	ZEND_ME(xydelta, setStartDocument, NULL, ZEND_ACC_PUBLIC)
+	ZEND_ME(xydelta, applyDelta, NULL, ZEND_ACC_PUBLIC)
+	{ NULL, NULL, NULL }
 };
 static zend_object_handlers xydelta_object_handlers;
 
 static zend_class_entry *xydiff_exception_ce;
 
-void register_xydelta(TSRMLS_D)
-{
+void register_xydelta(TSRMLS_D) {
 	memcpy(&xydelta_object_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 	zend_class_entry ce;
 	INIT_CLASS_ENTRY(ce, XYDELTA_CLASS_NAME, xydelta_methods);
@@ -39,15 +38,37 @@ void register_xydelta(TSRMLS_D)
 	}
 }
 
-static void xydelta_object_dtor(void *object TSRMLS_DC)
-{
+static void xydelta_object_dtor(void *object TSRMLS_DC) {
 	xydelta_object *intern = (xydelta_object *)object;
+	
+	if (zend_hash_exists(intern->libxml_start_doc->properties, "xiddoc", sizeof("xiddoc"))) {
+		XID_DOMDocument *xiddoc = get_xiddomdocument(intern->libxml_start_doc);
+		if (xiddoc != NULL) {
+			xiddoc->release();
+			delete xiddoc;
+		}		
+		zend_hash_del(intern->libxml_start_doc->properties, "xiddoc", sizeof("xiddoc"));
+	}
+	if (zend_hash_exists(intern->libxml_start_doc->properties, "xidmap", sizeof("xidmap")) == 1) {
+		zval** xidmapval;
+		if (zend_hash_find(intern->libxml_start_doc->properties, "xidmap", sizeof("xidmap"), (void**)&xidmapval) == SUCCESS) {
+			char *xidmapStr = Z_STRVAL_PP(xidmapval);
+			efree(xidmapStr);
+			FREE_ZVAL(*xidmapval);
+		}
+		zend_hash_del(intern->libxml_start_doc->properties, "xidmap", sizeof("xidmap"));
+	}
+	zend_hash_destroy(intern->libxml_start_doc->properties);
+	FREE_HASHTABLE(intern->libxml_start_doc->properties);
+	
+	int refcount = php_libxml_decrement_node_ptr((php_libxml_node_object *)intern->libxml_start_doc TSRMLS_CC);
+	php_libxml_decrement_doc_ref((php_libxml_node_object *)intern->libxml_start_doc TSRMLS_CC);
+
 	zend_object_std_dtor(&intern->std TSRMLS_CC);
 	efree(object);
 }
 
-zend_object_value xydelta_object_create(zend_class_entry *class_type TSRMLS_DC)
-{
+zend_object_value xydelta_object_create(zend_class_entry *class_type TSRMLS_DC) {
 	zend_object_value retval;
 	xydelta_object *intern;
 	zval *tmp;
@@ -69,8 +90,7 @@ zend_object_value xydelta_object_create(zend_class_entry *class_type TSRMLS_DC)
 	
 }
 
-static void xydelta_object_clone(void *object, void **object_clone TSRMLS_DC)
-{
+static void xydelta_object_clone(void *object, void **object_clone TSRMLS_DC) {
 	xydelta_object *intern = (xydelta_object *) object;
 	xydelta_object **intern_clone = (xydelta_object **) object_clone;
 	
@@ -82,17 +102,66 @@ static void xydelta_object_clone(void *object, void **object_clone TSRMLS_DC)
 	}
 }
 
-ZEND_METHOD(xydelta, __construct)
-{
+ZEND_METHOD(xydelta, __construct) {
 	
 }
 
-ZEND_METHOD(xydelta, setStartDocument)
-{
-	
+ZEND_METHOD(xydelta, setStartDocument) {
+	zval *id, *doc = NULL;
+	xydelta_object *intern;
+	xmlNode *node = NULL;
+	php_libxml_node_object *xml_object;
+
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oo", &id, xydelta_ce, &doc) == FAILURE) {
+		RETURN_FALSE;
+	}
+
+	intern = (xydelta_object *)zend_object_store_get_object(id TSRMLS_CC);
+	if (intern != NULL) {	
+		node = php_libxml_import_node(doc TSRMLS_CC);
+		
+		// Do some sanity checks on the DOMDocument that was passed
+		char *error_buf;
+		
+		if (SUCCESS != xydiff_check_libxml_document(node, &error_buf)) {
+			char error_msg [50];
+			sprintf(error_msg, "Error in start document: %s", error_buf);
+			zend_throw_exception(xydiff_exception_ce, error_msg, 0 TSRMLS_CC);
+			RETURN_FALSE;
+		}
+
+		// Clone the object we've been passed
+		_zend_object_store_bucket::_store_bucket::_store_object *doc_obj;
+		zend_object_handle handle = Z_OBJ_HANDLE_P(doc);
+		
+		doc_obj = &EG(objects_store).object_buckets[handle].bucket.obj;
+		
+		zend_object_handlers *handlers = doc->value.obj.handlers;
+
+		// Set up zval to hold our cloned XIDDOMDocument
+		zval *zdoc;
+		MAKE_STD_ZVAL(zdoc);
+		Z_TYPE_P(zdoc) = IS_OBJECT;
+		zdoc->value.obj = handlers->clone_obj(doc);
+
+		// Clone the old zend_object_value into the new zval
+		void *clone_intern = (void *)zend_object_store_get_object(zdoc TSRMLS_CC);
+		doc_obj->clone(doc_obj->object, &clone_intern TSRMLS_CC);
+
+		// Set the libxml_start_doc to the newly created php_libxml_node_object
+		intern->libxml_start_doc = (php_libxml_node_object *) zend_object_store_get_object(zdoc TSRMLS_CC);
+
+		// Set up properties hash table
+		ALLOC_HASHTABLE(intern->libxml_start_doc->properties);
+		if (zend_hash_init(intern->libxml_start_doc->properties, 50, NULL, NULL, 0) == FAILURE) {
+			FREE_HASHTABLE(intern->libxml_start_doc->properties);
+			return;
+		}
+
+		xiddomdocument_sync_with_libxml(intern->libxml_start_doc TSRMLS_CC);
+	}
 }
 
-ZEND_METHOD(xydelta, applyDelta)
-{
+ZEND_METHOD(xydelta, applyDelta) {
 	
 }

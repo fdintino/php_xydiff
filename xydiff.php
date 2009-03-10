@@ -21,10 +21,16 @@ if (extension_loaded($module)) {
 echo "$str\n";
 
 function test_xydiff() {
+
 	$dom1 = new XIDDOMDocument();
 	$dom1->load("tests/example1.xml");
 	$dom2 = new XIDDOMDocument();
 	$dom2->load("tests/example2.xml");
+
+
+	$xydelta = new XyDelta();
+	$xydelta->setStartDocument($dom1);
+
 	$xydiff = new XyDiff();
 	$diffed = $xydiff->createDelta($dom1, $dom2);
 	echo $diffed->saveXML();
@@ -35,7 +41,6 @@ function test_xydiff() {
 	echo "\n", '===== $xidtagged->saveXML() =====', "\n";
 	echo $xidtagged->saveXML();
 	test_xydiff_xidmap($xidmap);
-
 }
 
 function test_xydiff_xidmap($xidmap) {
