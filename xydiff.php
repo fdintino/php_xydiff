@@ -28,12 +28,17 @@ function test_xydiff() {
 	$dom2->load("tests/example2.xml");
 
 
-	$xydelta = new XyDelta();
-	$xydelta->setStartDocument($dom1);
-
 	$xydiff = new XyDiff();
-	$diffed = $xydiff->createDelta($dom1, $dom2);
-	echo $diffed->saveXML();
+	$delta = $xydiff->createDelta($dom1, $dom2);
+	
+	test_xydelta("tests/example1.xml", $delta);
+	// $xydelta = new XyDelta();
+	// $xydelta->setStartDocument($dom1);
+	// $delta = $xydelta->applyDelta($diffed);
+	// echo '$xydelta->applyDelta($diffed)',"\n";
+	// echo $delta->saveXML();
+	
+	echo $delta->saveXML();
 	echo "dom2->getXidMap() = ", $dom1->getXidMap(), "\n";
 	$xidmap = $dom2->getXidMap();
 	echo "dom2->getXidMap() = $xidmap\n";
@@ -41,6 +46,16 @@ function test_xydiff() {
 	echo "\n", '===== $xidtagged->saveXML() =====', "\n";
 	echo $xidtagged->saveXML();
 	test_xydiff_xidmap($xidmap);
+}
+
+function test_xydelta($file1, $delta) {
+	$dom1 = new XIDDOMDocument();
+	$dom1->load($file1);
+	$xydelta = new XyDelta();
+	$xydelta->setStartDocument($dom1);
+	$result = $xydelta->applyDelta($delta);
+	echo '$xydelta->applyDelta($diffed)',"\n";
+	echo $result->saveXML();
 }
 
 function test_xydiff_xidmap($xidmap) {

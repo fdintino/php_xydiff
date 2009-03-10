@@ -8,6 +8,9 @@
 #include "include/xiddomdocument.h"
 #include <zend_interfaces.h>
 
+#include "xercesc/dom/DOMElement.hpp"
+#include "xercesc/dom/DOMNode.hpp"
+
 #define XYDELTA_CLASS_NAME "XyDelta"
 
 XERCES_CPP_NAMESPACE_USE
@@ -23,6 +26,8 @@ static zend_function_entry xydelta_methods[] = {
 static zend_object_handlers xydelta_object_handlers;
 
 static zend_class_entry *xydiff_exception_ce;
+static zend_class_entry *xy_xml_exception_ce;
+static zend_class_entry *xy_dom_exception_ce;
 
 void register_xydelta(TSRMLS_D) {
 	memcpy(&xydelta_object_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
@@ -36,6 +41,20 @@ void register_xydelta(TSRMLS_D) {
 	} else {
 		xydiff_exception_ce = *xydiff_exception_ce_ptr;
 	}
+	// XyDomException
+	zend_class_entry **xy_dom_exception_ce_ptr;
+	if (zend_hash_find(CG(class_table), "xydomexception", sizeof("xydomexception"), (void **) &xy_dom_exception_ce_ptr) == FAILURE) {
+		xy_dom_exception_ce = zend_exception_get_default(TSRMLS_C);
+	} else {
+		xy_dom_exception_ce = *xy_dom_exception_ce_ptr;
+	}
+	// XyXMLException
+	zend_class_entry **xy_xml_exception_ce_ptr;
+	if (zend_hash_find(CG(class_table), "xyxmlexception", sizeof("xyxmlexception"), (void **) &xy_xml_exception_ce_ptr) == FAILURE) {
+		xy_xml_exception_ce = zend_exception_get_default(TSRMLS_C);
+	} else {
+		xy_xml_exception_ce = *xy_xml_exception_ce_ptr;
+	}	
 }
 
 static void xydelta_object_dtor(void *object TSRMLS_DC) {
@@ -163,5 +182,80 @@ ZEND_METHOD(xydelta, setStartDocument) {
 }
 
 ZEND_METHOD(xydelta, applyDelta) {
+	zval *id = NULL;
+	xydelta_object *intern;
+	zval *deltadoc = NULL;
+	xmlNode *node = NULL;
+	php_libxml_node_object *delta_libxml_obj;
+	XID_DOMDocument *delta_xiddoc;
+	xmlDocPtr libxml_result_doc;
+	char *xidmap = NULL;
+	zval *rv = NULL;
+	int ret;
 	
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oo", &id, xydelta_ce, &deltadoc) == FAILURE) {
+		RETURN_FALSE;
+	}
+
+	intern = (xydelta_object *)zend_object_store_get_object(id TSRMLS_CC);
+	if (intern != NULL) {
+		node = php_libxml_import_node(deltadoc TSRMLS_CC);
+
+		// Do some sanity checks on the DOMDocument that was passed
+		char *error_buf;
+		
+		if (SUCCESS != xydiff_check_libxml_document(node, &error_buf)) {
+			char error_msg [50];
+			sprintf(error_msg, "Error in delta document: %s", error_buf);
+			zend_throw_exception(xydiff_exception_ce, error_msg, 0 TSRMLS_CC);
+			RETURN_FALSE;
+		}
+
+		delta_libxml_obj = (php_libxml_node_object *) zend_object_store_get_object(deltadoc TSRMLS_CC);
+		xiddomdocument_sync_with_libxml(delta_libxml_obj TSRMLS_CC);
+		delta_xiddoc = get_xiddomdocument(delta_libxml_obj);
+		xiddomdocument_sync_with_libxml(intern->libxml_start_doc TSRMLS_CC);
+		XID_DOMDocument *start_xiddoc = get_xiddomdocument(intern->libxml_start_doc);
+
+
+		DOMDocument *resultDoc = NULL;
+		try {
+			DOMElement *deltaDocRoot = delta_xiddoc->getDocumentElement();
+			DOMNode *tNode = deltaDocRoot->getFirstChild();
+			start_xiddoc->addXidMap(NULL);
+			resultDoc = XyDelta::ApplyDelta(start_xiddoc, tNode, false );
+		}
+		catch ( const DOMException &e ) {
+			zend_throw_exception(xy_dom_exception_ce, XMLString::transcode(e.msg), 0 TSRMLS_CC);
+			RETURN_FALSE;
+		}
+		catch ( const DeltaException &e ) {
+			zend_throw_exception(xydiff_exception_ce, e.error, 0 TSRMLS_CC);
+			RETURN_FALSE;
+		}
+		catch ( const VersionManagerException &e ) {
+			zend_throw_exception(xydiff_exception_ce, strdup((e.context+": " +e.message).c_str()), 0 TSRMLS_CC);
+			RETURN_FALSE;
+		}
+		catch(const XMLException &e) {
+			zend_throw_exception(xy_xml_exception_ce, XMLString::transcode(e.getMessage()), 0 TSRMLS_CC);
+			RETURN_FALSE;
+		}		
+		catch ( ... ) {
+			zend_throw_exception(xydiff_exception_ce, "Unexpected exception occurred", 0 TSRMLS_CC);
+			RETURN_FALSE;
+		}
+		if (resultDoc != NULL) {
+			XID_DOMDocument *resultXidDoc = new XID_DOMDocument(resultDoc);
+			libxml_result_doc = xid_domdocument_to_libxml_domdocument( resultXidDoc TSRMLS_CC );
+			if (!libxml_result_doc)
+				RETURN_FALSE;
+
+			DOM_RET_OBJ(rv, (xmlNodePtr) libxml_result_doc, &ret, NULL);
+
+			// Free up memory
+			resultDoc->release();
+			//delete resultDoc;
+		}
+	}
 }
