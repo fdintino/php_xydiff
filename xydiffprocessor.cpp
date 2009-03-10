@@ -45,6 +45,9 @@
 #include "include/xydiffprocessor.h"
 #include "include/xiddomdocument.h"
 
+extern "C" {
+#include "zend_objects_API.h"
+}
 
 XERCES_CPP_NAMESPACE_USE
 
@@ -52,8 +55,6 @@ static zend_class_entry *xydiff_class_entry;
 
 static zend_function_entry xydiff_methods[] = {
 	ZEND_ME(xydiff, __construct, NULL, ZEND_ACC_PUBLIC)
-	ZEND_ME(xydiff, setStartDocument, NULL, ZEND_ACC_PUBLIC)
-	ZEND_ME(xydiff, setEndDocument, NULL, ZEND_ACC_PUBLIC)
 	ZEND_ME(xydiff, createDelta, NULL, ZEND_ACC_PUBLIC)
 	{ NULL, NULL, NULL }
 };
@@ -61,8 +62,7 @@ static zend_object_handlers xydiff_object_handlers;
 
 static zend_class_entry *xydiff_exception_ce;
 
-void register_xydiff(TSRMLS_D)
-{
+void register_xydiff(TSRMLS_D) {
 	memcpy(&xydiff_object_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 	zend_class_entry ce;
 	INIT_CLASS_ENTRY(ce, XYDIFF_CLASS_NAME, xydiff_methods);
@@ -76,23 +76,19 @@ void register_xydiff(TSRMLS_D)
 	}
 }
 
-static void xydiff_object_dtor(void *object TSRMLS_DC)
-{
+static void xydiff_object_dtor(void *object TSRMLS_DC) {
 	xydiff_object *intern = (xydiff_object *)object;
 	zend_object_std_dtor(&intern->std TSRMLS_CC);
 	efree(object);
 }
 
-zend_object_value xydiff_object_create(zend_class_entry *class_type TSRMLS_DC)
-{
+zend_object_value xydiff_object_create(zend_class_entry *class_type TSRMLS_DC) {
 	zend_object_value retval;
 	xydiff_object *intern;
 	zval *tmp;
 
 	intern = (xydiff_object *) emalloc(sizeof(xydiff_object));
 	memset(intern, 0, sizeof(xydiff_object));
-	intern->xiddoc1 = NULL;
-	intern->xiddoc2 = NULL;
 	
 	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
 	zend_hash_copy(intern->std.properties, &class_type->default_properties, (copy_ctor_func_t) zval_add_ref, (void *) &tmp, sizeof(zval *));
@@ -106,159 +102,126 @@ zend_object_value xydiff_object_create(zend_class_entry *class_type TSRMLS_DC)
 	
 }
 
-static void xydiff_object_clone(void *object, void **object_clone TSRMLS_DC)
-{
+static void xydiff_object_clone(void *object, void **object_clone TSRMLS_DC) {
 	xydiff_object *intern = (xydiff_object *) object;
 	xydiff_object **intern_clone = (xydiff_object **) object_clone;
 
 	*intern_clone = (xydiff_object *) emalloc(sizeof(xydiff_object));
-
-	(*intern_clone)->xiddoc1 = XID_DOMDocument::copy(intern->xiddoc1, 1);
-	(*intern_clone)->xiddoc2 = XID_DOMDocument::copy(intern->xiddoc2, 1);
 }
 
-ZEND_METHOD(xydiff, __construct)
-{
+ZEND_METHOD(xydiff, __construct) {
 	zval *id;
 	xydiff_object *intern;
 	
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, xydiff_class_entry) == FAILURE) {
 		RETURN_FALSE;
 	}
-	
 	intern = (xydiff_object *)zend_object_store_get_object(id TSRMLS_CC);
-	
-	if (intern != NULL) {
-		intern->xiddoc1 = NULL;
-		intern->xiddoc2 = NULL;
-	}	
 }
 
-ZEND_METHOD(xydiff, setStartDocument)
-{
-	zval *id, *docp = NULL;
+ZEND_METHOD(xydiff, createDelta) {
+	zval *id = NULL;
 	xydiff_object *intern;
-	xmlNode *nodep = NULL;
-	xmlDocPtr doc = NULL;
-	php_libxml_node_object *xml_object;
-	
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oo", &id, xydiff_class_entry, &docp) == FAILURE) {
-		RETURN_FALSE;
-	}
-	
-	intern = (xydiff_object *)zend_object_store_get_object(id TSRMLS_CC);
-	if (intern != NULL) {	
-		xml_object = (php_libxml_node_object *) zend_object_store_get_object(docp TSRMLS_CC);
-		
-		// Do some sanity checks on the DOMDocument that was passed
-		nodep = php_libxml_import_node(docp TSRMLS_CC);
-		if (nodep != NULL) {
-			if (nodep->doc == NULL) {
-				php_error_docref(NULL TSRMLS_CC, E_WARNING, "Imported Node must have associated Document");
-				RETURN_NULL();
-			}
-			if (nodep->type == XML_DOCUMENT_NODE || nodep->type == XML_HTML_DOCUMENT_NODE) {
-				nodep = xmlDocGetRootElement((xmlDocPtr) nodep);
-			}
-			if (nodep == NULL) {
-				php_error_docref(NULL TSRMLS_CC, E_WARNING, "Imported document has empty DOM tree");
-				RETURN_NULL();
-			}
-			doc = nodep->doc;
-		}
-		if (doc == NULL) {
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "Invalid Document");
-			return;
-		}
-
-		xiddomdocument_sync_with_libxml(xml_object TSRMLS_CC);
-		intern->xiddoc1 = get_xiddomdocument(xml_object);
-	}
-}
-
-ZEND_METHOD(xydiff, setEndDocument)
-{
-	zval *id, *docp = NULL;
-	xmlDocPtr doc = NULL;
-	xydiff_object *intern;
-	xmlNode *nodep = NULL;
-	php_libxml_node_object *xml_object;
-
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oo", &id, xydiff_class_entry, &docp) == FAILURE) {
-		RETURN_FALSE;
-	}
-
-	intern = (xydiff_object *)zend_object_store_get_object(id TSRMLS_CC);
-	if (intern != NULL) {
-
-		xml_object = (php_libxml_node_object *) zend_object_store_get_object(docp TSRMLS_CC);		
-
-		// Do some sanity checks on the DOMDocument that was passed
-		nodep = php_libxml_import_node(docp TSRMLS_CC);
-
-		if (nodep) {
-			if (nodep->doc == NULL) {
-				php_error_docref(NULL TSRMLS_CC, E_WARNING, "Imported Node must have associated Document");
-				RETURN_NULL();
-			}
-			if (nodep->type == XML_DOCUMENT_NODE || nodep->type == XML_HTML_DOCUMENT_NODE) {
-				nodep = xmlDocGetRootElement((xmlDocPtr) nodep);
-			}
-			if (nodep == NULL) {
-				php_error_docref(NULL TSRMLS_CC, E_WARNING, "Imported document has empty DOM tree");
-				RETURN_NULL();
-			}
-			doc = nodep->doc;
-		}
-		if (doc == NULL) {
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "Invalid Document");
-			return;
-		}
-		xiddomdocument_sync_with_libxml(xml_object TSRMLS_CC);
-		intern->xiddoc2 = get_xiddomdocument(xml_object);
-		intern->doc2 = xml_object;
-	}
-}
-
-ZEND_METHOD(xydiff, createDelta)
-{
-	zval *id, *rv;
-	xydiff_object *intern;
+	zval *doc1, *doc2 = NULL;
+	xmlNode *node1, *node2 = NULL;
+	php_libxml_node_object *xml_object1, *xml_object2 = NULL;
+	XID_DOMDocument *xiddoc1, *xiddoc2, *deltaDoc = NULL;
+	xmlDocPtr libxml_delta_doc;
+	char *xidmap = NULL;
+	zval *rv = NULL;
 	int ret;
-	
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "O", &id, xydiff_class_entry) == FAILURE) {
+
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Ooo", &id, xydiff_class_entry, &doc1, &doc2) == FAILURE) {
 		RETURN_FALSE;
 	}
-	
+
 	intern = (xydiff_object *)zend_object_store_get_object(id TSRMLS_CC);
 	if (intern != NULL) {
-		if (intern->xiddoc1 == NULL) {
-			zend_throw_exception(xydiff_exception_ce,
-								 "No start document has been specified",
-								 0 TSRMLS_CC);
+
+		node1 = php_libxml_import_node(doc1 TSRMLS_CC);
+		node2 = php_libxml_import_node(doc2 TSRMLS_CC);
+
+		// Do some sanity checks on the DOMDocuments that were passed
+		char *error_buf;
+
+		if (SUCCESS != xydiff_check_libxml_document(node1, &error_buf)) {
+			char error_msg [50];
+			sprintf(error_msg, "Error in start document: %s", error_buf);
+			zend_throw_exception(xydiff_exception_ce, error_msg, 0 TSRMLS_CC);
 			RETURN_FALSE;
 		}
-		if (intern->xiddoc2 == NULL) {
-			zend_throw_exception(xydiff_exception_ce,
-								 "No end document has been specified",
-								 0 TSRMLS_CC);
+
+		if (SUCCESS != xydiff_check_libxml_document(node2, &error_buf)) {
+			char error_msg [50];
+			sprintf(error_msg, "Error in end document: %s", error_buf);
+			zend_throw_exception(xydiff_exception_ce, error_msg, 0 TSRMLS_CC);
 			RETURN_FALSE;
 		}
-		XyDOMDelta* domDeltaCreate = new XyDOMDelta(intern->xiddoc1, intern->xiddoc2);
-		XID_DOMDocument *deltaDoc = domDeltaCreate->createDelta();
-		intern->libxml_delta_doc = xid_domdocument_to_libxml_domdocument(deltaDoc TSRMLS_CC);
+
+		xml_object1 = (php_libxml_node_object *) zend_object_store_get_object(doc1 TSRMLS_CC);
+		xiddomdocument_sync_with_libxml(xml_object1 TSRMLS_CC);
+		xiddoc1 = get_xiddomdocument(xml_object1);
+
+		xml_object2 = (php_libxml_node_object *) zend_object_store_get_object(doc2 TSRMLS_CC);
+		xiddomdocument_sync_with_libxml(xml_object2 TSRMLS_CC);
+		xiddoc2 = get_xiddomdocument(xml_object2);
+
+		if (xiddoc1 == NULL) {
+			zend_throw_exception(xydiff_exception_ce, "Could not process start XIDDOMDocument", 0 TSRMLS_CC);
+			RETURN_FALSE;
+		}
+		if (xiddoc2 == NULL) {
+			zend_throw_exception(xydiff_exception_ce, "Could not process end XIDDOMDocument", 0 TSRMLS_CC);
+			RETURN_FALSE;
+		}
+
+		XyDOMDelta* domDeltaCreate = new XyDOMDelta( xiddoc1, xiddoc2 );
+		deltaDoc = domDeltaCreate->createDelta();
+		libxml_delta_doc = xid_domdocument_to_libxml_domdocument( deltaDoc TSRMLS_CC );
+		if (!libxml_delta_doc)
+			RETURN_FALSE;
+
 		// Get the "fromXidMap" attribute in the delta document under first <t> element of the root
 		DOMElement *deltaDocRoot = deltaDoc->getDocumentElement();
-		DOMNode *tNode = deltaDocRoot->getFirstChild();
-		char *xidmap = XMLString::transcode( ((DOMElement *)tNode)->getAttribute(XMLString::transcode("fromXidMap")) );
-		xiddomdocument_set_xidmap((php_libxml_node_object *)intern->doc2, xidmap TSRMLS_CC);
-		std::cout << xidmap << std::endl;		
+		DOMElement *tNode = (DOMElement *) deltaDocRoot->getFirstChild();
+		xidmap = XMLString::transcode( tNode->getAttribute(XMLString::transcode("fromXidMap")) );
+		if (xidmap != NULL) {
+			xiddomdocument_set_xidmap(xml_object2, xidmap TSRMLS_CC);
+		}
+
+		DOM_RET_OBJ(rv, (xmlNodePtr) libxml_delta_doc, &ret, NULL);
+
+		// Free up memory
 		deltaDoc->release();
 		delete deltaDoc;
 		delete domDeltaCreate;
-		if (!intern->libxml_delta_doc)
-			RETURN_FALSE;
+	}
+}
 
-		DOM_RET_OBJ(rv, (xmlNodePtr) intern->libxml_delta_doc, &ret, NULL);		
+// Do some sanity checks on the DOMDocument that was passed
+int xydiff_check_libxml_document(xmlNode *node, char **error_buf) {
+	xmlDocPtr doc = NULL;
+
+	if (node == NULL)
+		return FAILURE;
+	if (node) {
+		if (node->doc == NULL) {
+			*error_buf = "Imported Node must have associated Document";
+			return FAILURE;
+		}
+		if (node->type == XML_DOCUMENT_NODE || node->type == XML_HTML_DOCUMENT_NODE) {
+			node = xmlDocGetRootElement((xmlDocPtr) node);
+		}
+		if (node == NULL) {
+			*error_buf = "Imported document has empty DOM tree";
+			return FAILURE;
+		}
+		doc = node->doc;
+	}
+	if (doc == NULL) {
+		*error_buf = "Invalid Document";
+		return FAILURE;
+	} else {
+		return SUCCESS;
 	}
 }
