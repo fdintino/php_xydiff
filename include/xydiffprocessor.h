@@ -14,6 +14,4 @@ void register_xydiff(TSRMLS_D);
 ZEND_METHOD(xydiff, __construct);
 ZEND_METHOD(xydiff, createDelta);
 
-int xydiff_check_libxml_document(xmlNode *node, char **error_buf);
-
 #endif

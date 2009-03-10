@@ -130,15 +130,6 @@ static void xiddomdocument_object_dtor(void *object TSRMLS_DC)
 	efree(object);
 }
 
-static void xiddomdocument_object_clone(void *object, void **object_clone TSRMLS_DC)
-{
-	dom_object *intern = (dom_object *) object;
-	dom_object **intern_clone = (dom_object **) object_clone;
-	
-	*intern_clone = (dom_object *) emalloc(sizeof(dom_object));
-	//(*intern_clone)->ptr = XID_DOMDocument::copy( (XID_DOMDocument *)intern->ptr , 1);
-}
-
 void xiddomdocument_sync_with_libxml(php_libxml_node_object *libxml_object TSRMLS_DC, bool hasNewXidmap)
 {
 	XID_DOMDocument *xiddoc = libxml_domdocument_to_xid_domdocument(libxml_object, hasNewXidmap TSRMLS_CC);
@@ -182,6 +173,7 @@ ZEND_METHOD(xiddomdocument, __destruct)
 		xiddoc = get_xiddomdocument(intern);
 		if (xiddoc != NULL) {
 			xiddoc->release();
+			delete xiddoc;
 		}		
 		zend_hash_del(intern->properties, "xiddoc", sizeof("xiddoc"));
 	}
@@ -270,7 +262,7 @@ int xiddomdocument_set_xidmap(php_libxml_node_object *libxml_object, char *xidma
 		// Remove old xidmap from properties HashTable if it exists
 		zval** oldxidmapval;
 		if (zend_hash_find(libxml_object->properties, "xidmap", sizeof("xidmap"), (void**)&xidmapval) == SUCCESS) {
-			char *oldxidmapStr = Z_STRVAL_PP(xidmapval);
+			char *oldxidmapStr = Z_STRVAL_P(xidmapval);
 			efree(oldxidmapStr);
 			FREE_ZVAL(*oldxidmapval);
 			zend_hash_del(libxml_object->properties, "xidmap", strlen("xidmap"));
@@ -374,7 +366,7 @@ ZEND_METHOD(xiddomdocument, __construct)
 	// XID_DOMDocument object
 	php_libxml_node_object *xml_object = (php_libxml_node_object *) intern;
 	ALLOC_HASHTABLE(xml_object->properties);
-	if (zend_hash_init(xml_object->properties, 50, NULL, (dtor_func_t) propDestructor, 0) == FAILURE) {
+	if (zend_hash_init(xml_object->properties, 50, NULL, NULL, 0) == FAILURE) {
 		FREE_HASHTABLE(xml_object->properties);
 		return;
 	}
@@ -403,7 +395,7 @@ xmlDocPtr xid_domdocument_to_libxml_domdocument(XID_DOMDocument *xiddoc TSRMLS_D
 		zend_throw_exception(xy_xml_exception_ce, XMLString::transcode(e.msg), 0 TSRMLS_CC);
 	}
 	catch (...) {
-		std::cout << "Unexpected Exception" << std::endl;
+		zend_throw_exception(xydiff_exception_ce, "Unexpected exception", 0 TSRMLS_CC);
 	}
 	
 	char* theXMLString_Encoded = (char*) ((MemBufFormatTarget*)myFormatTarget)->getRawBuffer();
@@ -554,5 +546,58 @@ dom_doc_propsptr dom_get_doc_props(php_libxml_node_object *node)
 			document->doc_props = doc_props;
 		}
 		return doc_props;
+	}
+}
+
+static void dom_copy_doc_props(php_libxml_ref_obj *source_doc, php_libxml_ref_obj *dest_doc)
+{
+	dom_doc_propsptr source, dest;
+	
+	if (source_doc && dest_doc) {
+		
+		source = dom_get_doc_props((php_libxml_node_object *)source_doc);
+		dest = dom_get_doc_props((php_libxml_node_object *)dest_doc);
+		
+		dest->formatoutput = source->formatoutput;
+		dest->validateonparse = source->validateonparse;
+		dest->resolveexternals = source->resolveexternals;
+		dest->preservewhitespace = source->preservewhitespace;
+		dest->substituteentities = source->substituteentities;
+		dest->stricterror = source->stricterror;
+		dest->recover = source->recover;
+		if (source->classmap) {
+			ALLOC_HASHTABLE(dest->classmap);
+			zend_hash_init(dest->classmap, 0, NULL, NULL, 0);
+			zend_hash_copy(dest->classmap, source->classmap, NULL, NULL, sizeof(zend_class_entry *));
+		}
+		
+	}
+}
+
+// Do some sanity checks on a DOMDocument that is passed
+int xydiff_check_libxml_document(xmlNode *node, char **error_buf) {
+	xmlDocPtr doc = NULL;
+	
+	if (node == NULL)
+		return FAILURE;
+	if (node) {
+		if (node->doc == NULL) {
+			*error_buf = "Imported Node must have associated Document";
+			return FAILURE;
+		}
+		if (node->type == XML_DOCUMENT_NODE || node->type == XML_HTML_DOCUMENT_NODE) {
+			node = xmlDocGetRootElement((xmlDocPtr) node);
+		}
+		if (node == NULL) {
+			*error_buf = "Imported document has empty DOM tree";
+			return FAILURE;
+		}
+		doc = node->doc;
+	}
+	if (doc == NULL) {
+		*error_buf = "Invalid Document";
+		return FAILURE;
+	} else {
+		return SUCCESS;
 	}
 }

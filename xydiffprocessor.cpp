@@ -197,31 +197,3 @@ ZEND_METHOD(xydiff, createDelta) {
 		delete domDeltaCreate;
 	}
 }
-
-// Do some sanity checks on the DOMDocument that was passed
-int xydiff_check_libxml_document(xmlNode *node, char **error_buf) {
-	xmlDocPtr doc = NULL;
-
-	if (node == NULL)
-		return FAILURE;
-	if (node) {
-		if (node->doc == NULL) {
-			*error_buf = "Imported Node must have associated Document";
-			return FAILURE;
-		}
-		if (node->type == XML_DOCUMENT_NODE || node->type == XML_HTML_DOCUMENT_NODE) {
-			node = xmlDocGetRootElement((xmlDocPtr) node);
-		}
-		if (node == NULL) {
-			*error_buf = "Imported document has empty DOM tree";
-			return FAILURE;
-		}
-		doc = node->doc;
-	}
-	if (doc == NULL) {
-		*error_buf = "Invalid Document";
-		return FAILURE;
-	} else {
-		return SUCCESS;
-	}
-}
