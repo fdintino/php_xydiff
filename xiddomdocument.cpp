@@ -290,13 +290,18 @@ ZEND_METHOD(xiddomdocument, generateXidTaggedDocument)
 	}
 	intern = (php_libxml_node_object *) zend_object_store_get_object(id TSRMLS_CC);
 	xiddoc = get_xiddomdocument(intern);
+	XID_DOMDocument* d = NULL;
 	try {
-		XID_DOMDocument* d = XID_DOMDocument::copy(xiddoc);
+		d = XID_DOMDocument::copy(xiddoc);
 		
 		DOMNode* root = (DOMNode *) d->getDocumentElement();
 		if (root!=NULL) Restricted::XidTagSubtree(d, root);
 		xmlDocPtr libxmldoc = xid_domdocument_to_libxml_domdocument(d TSRMLS_CC);
-		
+
+		if (d != NULL) {
+			d->release();
+			delete d;
+		}
 		if (!libxmldoc)
 			RETURN_FALSE;
 		DOM_RET_OBJ(rv, (xmlNodePtr) libxmldoc, &ret, NULL);

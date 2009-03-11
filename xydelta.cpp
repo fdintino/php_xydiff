@@ -146,6 +146,7 @@ ZEND_METHOD(xydelta, setStartDocument) {
 			char error_msg [50];
 			sprintf(error_msg, "Error in start document: %s", error_buf);
 			zend_throw_exception(xydiff_exception_ce, error_msg, 0 TSRMLS_CC);
+			delete [] error_buf;
 			RETURN_FALSE;
 		}
 
@@ -188,7 +189,7 @@ ZEND_METHOD(xydelta, applyDelta) {
 	xmlNode *node = NULL;
 	php_libxml_node_object *delta_libxml_obj;
 	XID_DOMDocument *delta_xiddoc;
-	xmlDocPtr libxml_result_doc;
+	xmlDocPtr libxml_result_doc = NULL;
 	char *xidmap = NULL;
 	zval *rv = NULL;
 	int ret;
@@ -227,35 +228,35 @@ ZEND_METHOD(xydelta, applyDelta) {
 		}
 		catch ( const DOMException &e ) {
 			zend_throw_exception(xy_dom_exception_ce, XMLString::transcode(e.msg), 0 TSRMLS_CC);
-			RETURN_FALSE;
 		}
 		catch ( const DeltaException &e ) {
 			zend_throw_exception(xydiff_exception_ce, e.error, 0 TSRMLS_CC);
-			RETURN_FALSE;
 		}
 		catch ( const VersionManagerException &e ) {
 			zend_throw_exception(xydiff_exception_ce, strdup((e.context+": " +e.message).c_str()), 0 TSRMLS_CC);
-			RETURN_FALSE;
 		}
 		catch(const XMLException &e) {
 			zend_throw_exception(xy_xml_exception_ce, XMLString::transcode(e.getMessage()), 0 TSRMLS_CC);
-			RETURN_FALSE;
 		}		
 		catch ( ... ) {
 			zend_throw_exception(xydiff_exception_ce, "Unexpected exception occurred", 0 TSRMLS_CC);
-			RETURN_FALSE;
 		}
 		if (resultDoc != NULL) {
 			XID_DOMDocument *resultXidDoc = new XID_DOMDocument(resultDoc);
 			libxml_result_doc = xid_domdocument_to_libxml_domdocument( resultXidDoc TSRMLS_CC );
-			if (!libxml_result_doc)
-				RETURN_FALSE;
 
+			// Release resources (free memory) associated with the XID_DOMDocument of the result
+			if (resultXidDoc != NULL) {
+				resultXidDoc->release();
+				delete resultXidDoc;
+			}
 			DOM_RET_OBJ(rv, (xmlNodePtr) libxml_result_doc, &ret, NULL);
-
-			// Free up memory
-			resultDoc->release();
-			//delete resultDoc;
 		}
+		// Free up memory
+		if (resultDoc != NULL) {
+			resultDoc->release();
+		}
+		if (!libxml_result_doc)
+			RETURN_FALSE;
 	}
 }
