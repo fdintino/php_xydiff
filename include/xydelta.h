@@ -10,6 +10,7 @@ typedef struct _xydelta_object {
 	zend_object std;
 	php_libxml_node_object *libxml_start_doc;
 	xmlDocPtr libxml_delta_doc;
+	zval *z_start_doc;
 	XID_DOMDocument* xid_delta_doc;
 	zend_object_handle handle;
 } xydelta_object;

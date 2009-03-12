@@ -178,22 +178,27 @@ ZEND_METHOD(xydiff, createDelta) {
 		XyDOMDelta* domDeltaCreate = new XyDOMDelta( xiddoc1, xiddoc2 );
 		deltaDoc = domDeltaCreate->createDelta();
 		libxml_delta_doc = xid_domdocument_to_libxml_domdocument( deltaDoc TSRMLS_CC );
+
 		if (!libxml_delta_doc)
 			RETURN_FALSE;
 
 		// Get the "fromXidMap" attribute in the delta document under first <t> element of the root
 		DOMElement *deltaDocRoot = deltaDoc->getDocumentElement();
 		DOMElement *tNode = (DOMElement *) deltaDocRoot->getFirstChild();
-		xidmap = XMLString::transcode( tNode->getAttribute(XMLString::transcode("fromXidMap")) );
+		XMLCh fromXidMap_attr[11];
+		XMLString::transcode("fromXidMap", fromXidMap_attr, 10);
+		xidmap = XMLString::transcode( tNode->getAttribute(fromXidMap_attr) );
 		if (xidmap != NULL) {
 			xiddomdocument_set_xidmap(xml_object2, xidmap TSRMLS_CC);
 		}
-
-		DOM_RET_OBJ(rv, (xmlNodePtr) libxml_delta_doc, &ret, NULL);
-
+		
 		// Free up memory
 		deltaDoc->release();
 		delete deltaDoc;
 		delete domDeltaCreate;
+		XMLString::release(&xidmap);
+
+		DOM_RET_OBJ(rv, (xmlNodePtr) libxml_delta_doc, &ret, NULL);
+
 	}
 }

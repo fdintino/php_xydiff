@@ -43,7 +43,6 @@ static zend_class_entry *xydiff_exception_ce;
 static zend_class_entry *xy_xml_exception_ce;
 static zend_class_entry *xy_dom_exception_ce;
 
-
 void register_xiddomdocument(TSRMLS_D)
 {
 	// Load Exception classes
@@ -123,7 +122,7 @@ static void xiddomdocument_object_dtor(void *object TSRMLS_DC)
 	XID_DOMDocument *xiddoc = get_xiddomdocument(xml_object);
 	if (xiddoc) {
 		xiddoc->release();
-		xiddoc = NULL;
+		delete xiddoc;
 	}
 	int refcount = php_libxml_decrement_node_ptr((php_libxml_node_object *)intern TSRMLS_CC);
 	php_libxml_decrement_doc_ref((php_libxml_node_object *)intern TSRMLS_CC);
@@ -138,6 +137,7 @@ void xiddomdocument_sync_with_libxml(php_libxml_node_object *libxml_object TSRML
 	if (zend_hash_find(libxml_object->properties, "xiddoc", sizeof("xiddoc"), (void **) &oldxiddocptr ) == SUCCESS) {
 		XID_DOMDocument *oldxiddoc = (XID_DOMDocument *) *oldxiddocptr;
 		oldxiddoc->release();
+		delete oldxiddoc;
 	}
 	zend_hash_update(libxml_object->properties, "xiddoc", sizeof("xiddoc"), &xiddocptr, sizeof(uintptr_t), NULL);
 }
@@ -211,11 +211,11 @@ ZEND_METHOD(xiddomdocument, getXidMap)
 		xidmap = new char [ xiddoc->getXidMap().String().length() + 1 ];
 		strcpy(xidmap, xiddoc->getXidMap().String().c_str());
 	}
-	catch ( const DOMException &e ) {
-		zend_throw_exception(xy_dom_exception_ce, XMLString::transcode(e.msg), 0 TSRMLS_CC);
-		RETURN_FALSE;
-	}
-	catch ( const DeltaException &e ) {
+	catch( const DOMException& e ) {
+		char *exceptionMsg = XMLString::transcode(e.msg);
+		zend_throw_exception(xy_xml_exception_ce, exceptionMsg, 0 TSRMLS_CC);
+		XMLString::release(&exceptionMsg);
+	}	catch ( const DeltaException &e ) {
 		zend_throw_exception(xydiff_exception_ce, e.error, 0 TSRMLS_CC);
 		RETURN_FALSE;
 	}
@@ -228,6 +228,7 @@ ZEND_METHOD(xiddomdocument, getXidMap)
 		RETURN_FALSE;
 	}
 	RETVAL_STRINGL(xidmap, strlen(xidmap), true);
+	delete [] xidmap;
 }
 
 ZEND_METHOD(xiddomdocument, setXidMap)
@@ -307,10 +308,11 @@ ZEND_METHOD(xiddomdocument, generateXidTaggedDocument)
 		DOM_RET_OBJ(rv, (xmlNodePtr) libxmldoc, &ret, NULL);
 		
 	}
-	catch( const DOMException &e ) {
-		zend_throw_exception(xy_dom_exception_ce, XMLString::transcode(e.msg), 0 TSRMLS_CC);
-	}
-	catch ( const DeltaException &e ) {
+	catch( const DOMException& e ) {
+		char *exceptionMsg = XMLString::transcode(e.msg);
+		zend_throw_exception(xy_xml_exception_ce, exceptionMsg, 0 TSRMLS_CC);
+		XMLString::release(&exceptionMsg);
+	}	catch ( const DeltaException &e ) {
 		zend_throw_exception(xydiff_exception_ce, e.error, 0 TSRMLS_CC);
 	}
 	catch( const VersionManagerException &e ) {
@@ -379,7 +381,8 @@ ZEND_METHOD(xiddomdocument, __construct)
 
 xmlDocPtr xid_domdocument_to_libxml_domdocument(XID_DOMDocument *xiddoc TSRMLS_DC)
 {
-	DOMImplementation *impl = DOMImplementationRegistry::getDOMImplementation(XMLString::transcode("LS"));
+	static const XMLCh gLS[] = { chLatin_L, chLatin_S, chNull };
+	DOMImplementation *impl = DOMImplementationRegistry::getDOMImplementation(gLS);
 	DOMLSSerializer* theSerializer = ((DOMImplementationLS*)impl)->createLSSerializer();
 	DOMLSOutput *theOutput = ((DOMImplementationLS*)impl)->createLSOutput();
 	
@@ -394,10 +397,14 @@ xmlDocPtr xid_domdocument_to_libxml_domdocument(XID_DOMDocument *xiddoc TSRMLS_D
 		theSerializer->write((DOMDocument*)xiddoc, theOutput);
 	}
 	catch (const XMLException& e) {
-		zend_throw_exception(xy_dom_exception_ce, XMLString::transcode(e.getMessage()), 0 TSRMLS_CC);
+		char *exceptionMsg = XMLString::transcode(e.getMessage());
+		zend_throw_exception(xy_dom_exception_ce, exceptionMsg, 0 TSRMLS_CC);
+		XMLString::release(&exceptionMsg);
 	}
 	catch( const DOMException& e ) {
-		zend_throw_exception(xy_xml_exception_ce, XMLString::transcode(e.msg), 0 TSRMLS_CC);
+		char *exceptionMsg = XMLString::transcode(e.msg);
+		zend_throw_exception(xy_xml_exception_ce, exceptionMsg, 0 TSRMLS_CC);
+		XMLString::release(&exceptionMsg);
 	}
 	catch (...) {
 		zend_throw_exception(xydiff_exception_ce, "Unexpected exception", 0 TSRMLS_CC);
@@ -412,7 +419,7 @@ xmlDocPtr xid_domdocument_to_libxml_domdocument(XID_DOMDocument *xiddoc TSRMLS_D
 	
 	theOutput->release();
 	theSerializer->release();
-	
+	delete myFormatTarget;
 	
 	xmlDocPtr newdoc;
 	xmlParserCtxtPtr ctxt = NULL;
@@ -424,8 +431,11 @@ xmlDocPtr xid_domdocument_to_libxml_domdocument(XID_DOMDocument *xiddoc TSRMLS_D
 	xmlParseDocument(ctxt);
 	if (ctxt->wellFormed) {
 		newdoc = ctxt->myDoc;
+	} else {
+		xmlFreeDoc(ctxt->myDoc);
+		ctxt->myDoc = NULL;
 	}
-	
+	xmlFreeParserCtxt(ctxt);
 	efree(xmlString);
 	return newdoc;
 }
@@ -445,26 +455,39 @@ XID_DOMDocument * libxml_domdocument_to_xid_domdocument(php_libxml_node_object *
 	xmlDocDumpFormatMemory(docp, &mem, &size, format);
 	
 	const char *xmlString = (const char *)mem;
-	
 	static const XMLCh gLS[] = { chLatin_L, chLatin_S, chNull };
+	DOMImplementation *impl = NULL;
+	DOMLSParser *theParser = NULL;
+	DOMDocument *domdoc;
 	try {
-		DOMImplementation *impl = DOMImplementationRegistry::getDOMImplementation(gLS);
-		DOMLSParser *theParser = ((DOMImplementationLS*)impl)->createLSParser(DOMImplementationLS::MODE_SYNCHRONOUS, 0);
+		
+		impl = DOMImplementationRegistry::getDOMImplementation(gLS);
+		theParser = ((DOMImplementationLS*)impl)->createLSParser(DOMImplementationLS::MODE_SYNCHRONOUS, 0);
+		theParser->getDomConfig()->setParameter(XMLUni::fgXercesUserAdoptsDOMDocument, true);
 		DOMErrorHandler * handler = new xydiffPHPParseHandler();
-		XMLCh *myWideString = XMLString::transcode(xmlString);
 		MemBufInputSource *memIS = new MemBufInputSource((const XMLByte *)xmlString, strlen(xmlString), "test", false);
 		Wrapper4InputSource *wrapper = new Wrapper4InputSource(memIS, false);		
 		theParser->getDomConfig()->setParameter(XMLUni::fgDOMErrorHandler, handler);
 		xiddoc = theParser->parse((DOMLSInput *) wrapper);
-	} catch (const XMLException& e) {
-		zend_throw_exception(xydiff_exception_ce, XMLString::transcode(e.getMessage()), 0 TSRMLS_CC);
-	} catch (const DOMException& toCatch) {
-		char* message = XMLString::transcode(toCatch.msg);
-		zend_throw_exception(xydiff_exception_ce, XMLString::transcode(toCatch.msg), 0 TSRMLS_CC);
-	} catch (...) {
+
+		wrapper->release();
+		theParser->release();
+		delete memIS;
+		delete handler;
+	}
+	catch (const XMLException& e) {
+		char *exceptionMsg = XMLString::transcode(e.getMessage());
+		zend_throw_exception(xy_dom_exception_ce, exceptionMsg, 0 TSRMLS_CC);
+		XMLString::release(&exceptionMsg);
+	}
+	catch( const DOMException& e ) {
+		char *exceptionMsg = XMLString::transcode(e.msg);
+		zend_throw_exception(xy_xml_exception_ce, exceptionMsg, 0 TSRMLS_CC);
+		XMLString::release(&exceptionMsg);
+	}
+	catch (...) {
 		zend_throw_exception(xydiff_exception_ce, "Unexpected exception during XML parsing", 0 TSRMLS_CC);
 	}
-	
 	if (size) {
 		xmlFree(mem);
 	}
@@ -479,18 +502,24 @@ XID_DOMDocument * libxml_domdocument_to_xid_domdocument(php_libxml_node_object *
 		if (xidmapStr != NULL && strlen(xidmapStr) > 0) {
 			try {
 				xiddomdoc = new XID_DOMDocument(xiddoc, xidmapStr, true);
-				return xiddomdoc;
 			}
 			catch ( const DeltaException &e ) {
 				errormsg = estrdup(e.error);
+				delete xiddomdoc;
+				xiddomdoc = NULL;
 			} catch ( const XIDMapException &e ) {
 				errormsg = estrdup((e.context+": " +e.message).c_str());
+				delete xiddomdoc;
+				xiddomdoc = NULL;
 			} catch ( ... ) {
 				errormsg = estrdup("Unexpected exception while setting XidMap");
+				delete xiddomdoc;
+				xiddomdoc = NULL;
 			}
 		}
 	}
-
+	
+	
 	// Create XID_DOMDocument without a user-defined xidmap
 	if (xiddomdoc == NULL) {
 		try {

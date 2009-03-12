@@ -31,7 +31,10 @@ function test_xydiff() {
 	$xydiff = new XyDiff();
 	$delta = $xydiff->createDelta($dom1, $dom2);
 	
-	test_xydelta("tests/example1.xml", $delta);
+	$result = test_xydelta("tests/example1.xml", $delta);
+	echo '$xydelta->applyDelta($diffed)',"\n";
+	echo $result->saveXML();
+
 	// $xydelta = new XyDelta();
 	// $xydelta->setStartDocument($dom1);
 	// $delta = $xydelta->applyDelta($diffed);
@@ -46,6 +49,11 @@ function test_xydiff() {
 	echo "\n", '===== $xidtagged->saveXML() =====', "\n";
 	echo $xidtagged->saveXML();
 	test_xydiff_xidmap($xidmap);
+	if ($result->saveXML() == $dom2->saveXML()) {
+		echo "DeltaApply result matches original!\n";
+	} else {
+		echo "DeltaApply result does not match original.\n";
+	}
 }
 
 function test_xydelta($file1, $delta) {
@@ -54,8 +62,7 @@ function test_xydelta($file1, $delta) {
 	$xydelta = new XyDelta();
 	$xydelta->setStartDocument($dom1);
 	$result = $xydelta->applyDelta($delta);
-	echo '$xydelta->applyDelta($diffed)',"\n";
-	echo $result->saveXML();
+	return $result;
 }
 
 function test_xydiff_xidmap($xidmap) {

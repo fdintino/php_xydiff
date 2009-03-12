@@ -79,7 +79,8 @@ static void xydelta_object_dtor(void *object TSRMLS_DC) {
 	}
 	zend_hash_destroy(intern->libxml_start_doc->properties);
 	FREE_HASHTABLE(intern->libxml_start_doc->properties);
-	
+
+	// Free the start doc
 	int refcount = php_libxml_decrement_node_ptr((php_libxml_node_object *)intern->libxml_start_doc TSRMLS_CC);
 	php_libxml_decrement_doc_ref((php_libxml_node_object *)intern->libxml_start_doc TSRMLS_CC);
 
@@ -159,17 +160,13 @@ ZEND_METHOD(xydelta, setStartDocument) {
 		zend_object_handlers *handlers = doc->value.obj.handlers;
 
 		// Set up zval to hold our cloned XIDDOMDocument
-		zval *zdoc;
-		MAKE_STD_ZVAL(zdoc);
-		Z_TYPE_P(zdoc) = IS_OBJECT;
-		zdoc->value.obj = handlers->clone_obj(doc);
+		MAKE_STD_ZVAL(intern->z_start_doc);
+		Z_TYPE_P(intern->z_start_doc) = IS_OBJECT;
+		intern->z_start_doc->value.obj = handlers->clone_obj(doc);
 
-		// Clone the old zend_object_value into the new zval
-		void *clone_intern = (void *)zend_object_store_get_object(zdoc TSRMLS_CC);
-		doc_obj->clone(doc_obj->object, &clone_intern TSRMLS_CC);
 
 		// Set the libxml_start_doc to the newly created php_libxml_node_object
-		intern->libxml_start_doc = (php_libxml_node_object *) zend_object_store_get_object(zdoc TSRMLS_CC);
+		intern->libxml_start_doc = (php_libxml_node_object *) zend_object_store_get_object(intern->z_start_doc TSRMLS_CC);
 
 		// Set up properties hash table
 		ALLOC_HASHTABLE(intern->libxml_start_doc->properties);
@@ -188,7 +185,7 @@ ZEND_METHOD(xydelta, applyDelta) {
 	zval *deltadoc = NULL;
 	xmlNode *node = NULL;
 	php_libxml_node_object *delta_libxml_obj;
-	XID_DOMDocument *delta_xiddoc;
+	XID_DOMDocument *delta_xiddoc = NULL;
 	xmlDocPtr libxml_result_doc = NULL;
 	char *xidmap = NULL;
 	zval *rv = NULL;
@@ -213,8 +210,7 @@ ZEND_METHOD(xydelta, applyDelta) {
 		}
 
 		delta_libxml_obj = (php_libxml_node_object *) zend_object_store_get_object(deltadoc TSRMLS_CC);
-		xiddomdocument_sync_with_libxml(delta_libxml_obj TSRMLS_CC);
-		delta_xiddoc = get_xiddomdocument(delta_libxml_obj);
+		delta_xiddoc = libxml_domdocument_to_xid_domdocument(delta_libxml_obj);
 		xiddomdocument_sync_with_libxml(intern->libxml_start_doc TSRMLS_CC);
 		XID_DOMDocument *start_xiddoc = get_xiddomdocument(intern->libxml_start_doc);
 
@@ -227,6 +223,9 @@ ZEND_METHOD(xydelta, applyDelta) {
 			resultDoc = XyDelta::ApplyDelta(start_xiddoc, tNode, false );
 		}
 		catch ( const DOMException &e ) {
+			if (delta_xiddoc != NULL) {
+				delete delta_xiddoc;
+			}
 			zend_throw_exception(xy_dom_exception_ce, XMLString::transcode(e.msg), 0 TSRMLS_CC);
 		}
 		catch ( const DeltaException &e ) {
@@ -251,6 +250,9 @@ ZEND_METHOD(xydelta, applyDelta) {
 				delete resultXidDoc;
 			}
 			DOM_RET_OBJ(rv, (xmlNodePtr) libxml_result_doc, &ret, NULL);
+		}
+		if (delta_xiddoc != NULL) {
+			delete delta_xiddoc;
 		}
 		// Free up memory
 		if (resultDoc != NULL) {
