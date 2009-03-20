@@ -34,7 +34,7 @@ ZEND_METHOD(xiddomdocument, setXidMap);
 ZEND_METHOD(xiddomdocument, generateXidTaggedDocument);
 
 xmlDocPtr xid_domdocument_to_libxml_domdocument(XID_DOMDocument *xiddoc TSRMLS_DC);
-XID_DOMDocument * libxml_domdocument_to_xid_domdocument(php_libxml_node_object *libxml_doc, bool hasNewXidmap=false TSRMLS_DC);
+XID_DOMDocument * libxml_domdocument_to_xid_domdocument(php_libxml_node_object *libxml_doc TSRMLS_DC, bool hasNewXidmap = false);
 dom_doc_propsptr dom_get_doc_props(php_libxml_node_object *node);
 static void dom_copy_doc_props(php_libxml_ref_obj *source_doc, php_libxml_ref_obj *dest_doc);
 int xydiff_check_libxml_document(xmlNode *node, char **error_buf);

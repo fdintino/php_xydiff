@@ -42,7 +42,7 @@ function test_xydiff() {
 	// echo $delta->saveXML();
 	
 	echo $delta->saveXML();
-	echo "dom2->getXidMap() = ", $dom1->getXidMap(), "\n";
+	echo "dom1->getXidMap() = ", $dom1->getXidMap(), "\n";
 	$xidmap = $dom2->getXidMap();
 	echo "dom2->getXidMap() = $xidmap\n";
 	$xidtagged = $dom2->generateXidTaggedDocument();

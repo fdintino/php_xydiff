@@ -131,7 +131,7 @@ static void xiddomdocument_object_dtor(void *object TSRMLS_DC)
 
 void xiddomdocument_sync_with_libxml(php_libxml_node_object *libxml_object TSRMLS_DC, bool hasNewXidmap)
 {
-	XID_DOMDocument *xiddoc = libxml_domdocument_to_xid_domdocument(libxml_object, hasNewXidmap TSRMLS_CC);
+	XID_DOMDocument *xiddoc = libxml_domdocument_to_xid_domdocument(libxml_object TSRMLS_CC, hasNewXidmap);
 	uintptr_t xiddocptr = (uintptr_t) xiddoc;
 	uintptr_t *oldxiddocptr;
 	if (zend_hash_find(libxml_object->properties, "xiddoc", sizeof("xiddoc"), (void **) &oldxiddocptr ) == SUCCESS) {
@@ -440,7 +440,7 @@ xmlDocPtr xid_domdocument_to_libxml_domdocument(XID_DOMDocument *xiddoc TSRMLS_D
 	return newdoc;
 }
 
-XID_DOMDocument * libxml_domdocument_to_xid_domdocument(php_libxml_node_object *libxml_obj, bool hasNewXidmap TSRMLS_DC)
+XID_DOMDocument * libxml_domdocument_to_xid_domdocument(php_libxml_node_object *libxml_obj TSRMLS_DC, bool hasNewXidmap)
 {
 	xmlChar *mem = NULL;
 	int size = 0;

@@ -210,7 +210,7 @@ ZEND_METHOD(xydelta, applyDelta) {
 		}
 
 		delta_libxml_obj = (php_libxml_node_object *) zend_object_store_get_object(deltadoc TSRMLS_CC);
-		delta_xiddoc = libxml_domdocument_to_xid_domdocument(delta_libxml_obj);
+		delta_xiddoc = libxml_domdocument_to_xid_domdocument(delta_libxml_obj TSRMLS_CC);
 		xiddomdocument_sync_with_libxml(intern->libxml_start_doc TSRMLS_CC);
 		XID_DOMDocument *start_xiddoc = get_xiddomdocument(intern->libxml_start_doc);
 
