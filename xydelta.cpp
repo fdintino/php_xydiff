@@ -162,7 +162,7 @@ ZEND_METHOD(xydelta, setStartDocument) {
 		// Set up zval to hold our cloned XIDDOMDocument
 		MAKE_STD_ZVAL(intern->z_start_doc);
 		Z_TYPE_P(intern->z_start_doc) = IS_OBJECT;
-		intern->z_start_doc->value.obj = handlers->clone_obj(doc);
+		intern->z_start_doc->value.obj = handlers->clone_obj(doc TSRMLS_CC);
 
 
 		// Set the libxml_start_doc to the newly created php_libxml_node_object
