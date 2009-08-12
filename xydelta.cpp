@@ -183,18 +183,23 @@ ZEND_METHOD(xydelta, applyDelta) {
 	zval *id = NULL;
 	xydelta_object *intern;
 	zval *deltadoc = NULL;
+	zend_bool apply_annotations = 0;
+	
 	xmlNode *node = NULL;
 	php_libxml_node_object *delta_libxml_obj;
 	XID_DOMDocument *delta_xiddoc = NULL;
 	xmlDocPtr libxml_result_doc = NULL;
 	char *xidmap = NULL;
+
 	zval *rv = NULL;
 	int ret;
 	
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oo", &id, xydelta_ce, &deltadoc) == FAILURE) {
+	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oo|b", &id, xydelta_ce, &deltadoc, &apply_annotations) == FAILURE) {
 		RETURN_FALSE;
 	}
 
+	int int_apply_annotations = (int) apply_annotations;
+	
 	intern = (xydelta_object *)zend_object_store_get_object(id TSRMLS_CC);
 	if (intern != NULL) {
 		node = php_libxml_import_node(deltadoc TSRMLS_CC);
@@ -220,7 +225,7 @@ ZEND_METHOD(xydelta, applyDelta) {
 			DOMElement *deltaDocRoot = delta_xiddoc->getDocumentElement();
 			DOMNode *tNode = deltaDocRoot->getFirstChild();
 			start_xiddoc->addXidMap(NULL);
-			resultDoc = XyDelta::ApplyDelta(start_xiddoc, tNode, false );
+			resultDoc = XyDelta::ApplyDelta(start_xiddoc, tNode, (bool) int_apply_annotations );
 		}
 		catch ( const DOMException &e ) {
 			if (delta_xiddoc != NULL) {

@@ -25,6 +25,7 @@
 #include "include/xiddomdocument.h"
 #include "include/xydiff_error_handler.h"
 #include "include/xydelta.h"
+#include "OOMPublic.h"
 
 XERCES_CPP_NAMESPACE_USE
 
@@ -106,6 +107,7 @@ PHP_MINIT_FUNCTION(xydiff)
 							 message,
 							 0 TSRMLS_CC);
 	}
+//	__OOMInit();
 	// The XyDiffException class has to be registered first for the other two classes to access it
 	register_xydiff_exception(TSRMLS_C);
 	register_xydiff(TSRMLS_C);
@@ -122,6 +124,15 @@ PHP_MINIT_FUNCTION(xydiff)
 
 PHP_MSHUTDOWN_FUNCTION(xydiff)
 {
+	try {
+		XMLPlatformUtils::Terminate();
+	}
+	catch(const XMLException& toCatch) {
+		char *message = strcat("XMLException: Error during Xerces-c Initialization:\n Exception message: ", XyLatinStr(toCatch.getMessage()).localForm());
+		zend_throw_exception(zend_exception_get_default(TSRMLS_C),
+							 message,
+							 0 TSRMLS_CC);
+	}
 	/* uncomment this line if you have INI entries
 	UNREGISTER_INI_ENTRIES();
 	*/
