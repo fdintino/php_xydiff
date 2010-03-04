@@ -25,7 +25,6 @@
 #include "include/xiddomdocument.h"
 #include "include/xydiff_error_handler.h"
 #include "include/xydelta.h"
-#include "OOMPublic.h"
 
 XERCES_CPP_NAMESPACE_USE
 

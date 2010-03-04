@@ -24,7 +24,7 @@ if (PHP_XYDIFF != "no") {
 			EXTENSION("xydiff", "xydiff.cpp \
 				                 xydiffprocessor.cpp \
 				                 xiddomdocument.cpp \
-				                 xydiff_error_handler.cpp
+				                 xydiff_error_handler.cpp \
 				                 xydelta.cpp", 1, cflags);					
 	}
 }
