@@ -21,14 +21,21 @@
 #ifndef PHP_XYDIFF_H
 #define PHP_XYDIFF_H
 
+
+// Hack for VC6
+#ifdef _MSC_VER
+#include "inttypes.h"
+#endif
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-extern "C" {
 #include "php.h"
 #include "php_ini.h"
 #include "ext/standard/info.h"
+extern "C" {
+
 }
 
 #if !defined(_WIN32) && !defined(_WIN64)
@@ -38,6 +45,7 @@ extern "C" {
 #include <sys/sysctl.h>
 
 #endif
+
 
 extern zend_module_entry xydiff_module_entry;
 #define phpext_xydiff_ptr &xydiff_module_entry

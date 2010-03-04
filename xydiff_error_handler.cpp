@@ -3,7 +3,7 @@
  *  xydiff
  */
 
-
+#include "include/php_xydiff.hpp"
 
 #include <cstring>
 #ifdef HAVE_CONFIG_H
@@ -16,7 +16,6 @@ extern "C" {
 #include "ext/standard/info.h"
 }
 
-#include "include/php_xydiff.hpp"
 #include "include/xydiff_error_handler.h"
 
 XERCES_CPP_NAMESPACE_USE
