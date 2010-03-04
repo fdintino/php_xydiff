@@ -59,7 +59,6 @@ void register_xydelta(TSRMLS_D) {
 
 static void xydelta_object_dtor(void *object TSRMLS_DC) {
 	xydelta_object *intern = (xydelta_object *)object;
-	
 	if (zend_hash_exists(intern->libxml_start_doc->properties, "xiddoc", sizeof("xiddoc"))) {
 		XID_DOMDocument *xiddoc = get_xiddomdocument(intern->libxml_start_doc);
 		if (xiddoc != NULL) {

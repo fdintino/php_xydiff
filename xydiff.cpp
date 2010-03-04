@@ -28,9 +28,7 @@
 
 XERCES_CPP_NAMESPACE_USE
 
-/* If you declare any globals in php_xydiff.h uncomment this:
-ZEND_DECLARE_MODULE_GLOBALS(xydiff)
-*/
+
 
 zend_function_entry xydiff_functions[] = {
 	{NULL, NULL, NULL}	/* Must be the last line in xydiff_functions[] */
@@ -57,11 +55,11 @@ zend_module_entry xydiff_module_entry = {
 	xydiff_functions,
 	PHP_MINIT(xydiff),
 	PHP_MSHUTDOWN(xydiff),
-	PHP_RINIT(xydiff),		/* Replace with NULL if there's nothing to do at request start */
-	PHP_RSHUTDOWN(xydiff),	/* Replace with NULL if there's nothing to do at request end */
+	NULL,
+	NULL,
 	PHP_MINFO(xydiff),
 #if ZEND_MODULE_API_NO >= 20010901
-	"0.1", /* Replace with version number for your extension */
+	"0.1",
 #endif
 	STANDARD_MODULE_PROPERTIES
 };
@@ -72,22 +70,6 @@ ZEND_GET_MODULE(xydiff)
 END_EXTERN_C()
 #endif
 
-
-/* Remove comments and fill if you need to have entries in php.ini
-PHP_INI_BEGIN()
-    STD_PHP_INI_ENTRY("xydiff.global_value",      "42", PHP_INI_ALL, OnUpdateLong, global_value, zend_xydiff_globals, xydiff_globals)
-    STD_PHP_INI_ENTRY("xydiff.global_string", "foobar", PHP_INI_ALL, OnUpdateString, global_string, zend_xydiff_globals, xydiff_globals)
-PHP_INI_END()
-*/
-
-
-/* Uncomment this function if you have INI entries
-static void php_xydiff_init_globals(zend_xydiff_globals *xydiff_globals)
-{
-	xydiff_globals->global_value = 0;
-	xydiff_globals->global_string = NULL;
-}
-*/
 
 static HashTable classes;
 
@@ -106,16 +88,12 @@ PHP_MINIT_FUNCTION(xydiff)
 							 message,
 							 0 TSRMLS_CC);
 	}
-//	__OOMInit();
+
 	// The XyDiffException class has to be registered first for the other two classes to access it
 	register_xydiff_exception(TSRMLS_C);
 	register_xydiff(TSRMLS_C);
 	register_xiddomdocument(TSRMLS_C);
 	register_xydelta(TSRMLS_C);
-	
-	/* If you have INI entries, uncomment these lines 
-	REGISTER_INI_ENTRIES();
-	*/
 
 	
 	return SUCCESS;
@@ -132,22 +110,7 @@ PHP_MSHUTDOWN_FUNCTION(xydiff)
 							 message,
 							 0 TSRMLS_CC);
 	}
-	/* uncomment this line if you have INI entries
-	UNREGISTER_INI_ENTRIES();
-	*/
-	return SUCCESS;
-}
 
-
-/* Remove if there's nothing to do at request start */
-PHP_RINIT_FUNCTION(xydiff)
-{
-	return SUCCESS;
-}
-
-/* Remove if there's nothing to do at request end */
-PHP_RSHUTDOWN_FUNCTION(xydiff)
-{
 	return SUCCESS;
 }
 
@@ -157,7 +120,4 @@ PHP_MINFO_FUNCTION(xydiff)
 	php_info_print_table_row(2, "xydiff support", "enabled");
 	php_info_print_table_end();
 
-	/* Remove comments if you have entries in php.ini
-	DISPLAY_INI_ENTRIES();
-	*/
 }
