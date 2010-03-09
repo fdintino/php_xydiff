@@ -59,29 +59,31 @@ void register_xydelta(TSRMLS_D) {
 
 static void xydelta_object_dtor(void *object TSRMLS_DC) {
 	xydelta_object *intern = (xydelta_object *)object;
-	if (zend_hash_exists(intern->libxml_start_doc->properties, "xiddoc", sizeof("xiddoc"))) {
-		XID_DOMDocument *xiddoc = get_xiddomdocument(intern->libxml_start_doc);
-		if (xiddoc != NULL) {
-			xiddoc->release();
-			delete xiddoc;
-		}		
-		zend_hash_del(intern->libxml_start_doc->properties, "xiddoc", sizeof("xiddoc"));
-	}
-	if (zend_hash_exists(intern->libxml_start_doc->properties, "xidmap", sizeof("xidmap")) == 1) {
-		zval** xidmapval;
-		if (zend_hash_find(intern->libxml_start_doc->properties, "xidmap", sizeof("xidmap"), (void**)&xidmapval) == SUCCESS) {
-			char *xidmapStr = Z_STRVAL_PP(xidmapval);
-			efree(xidmapStr);
-			FREE_ZVAL(*xidmapval);
+	if (intern->libxml_start_doc) {
+		if (zend_hash_exists(intern->libxml_start_doc->properties, "xiddoc", sizeof("xiddoc"))) {
+			XID_DOMDocument *xiddoc = get_xiddomdocument(intern->libxml_start_doc);
+			if (xiddoc != NULL) {
+				xiddoc->release();
+				delete xiddoc;
+			}		
+			zend_hash_del(intern->libxml_start_doc->properties, "xiddoc", sizeof("xiddoc"));
 		}
-		zend_hash_del(intern->libxml_start_doc->properties, "xidmap", sizeof("xidmap"));
-	}
-	zend_hash_destroy(intern->libxml_start_doc->properties);
-	FREE_HASHTABLE(intern->libxml_start_doc->properties);
+		if (zend_hash_exists(intern->libxml_start_doc->properties, "xidmap", sizeof("xidmap")) == 1) {
+			zval** xidmapval;
+			if (zend_hash_find(intern->libxml_start_doc->properties, "xidmap", sizeof("xidmap"), (void**)&xidmapval) == SUCCESS) {
+				char *xidmapStr = Z_STRVAL_PP(xidmapval);
+				efree(xidmapStr);
+				FREE_ZVAL(*xidmapval);
+			}
+			zend_hash_del(intern->libxml_start_doc->properties, "xidmap", sizeof("xidmap"));
+		}
+		zend_hash_destroy(intern->libxml_start_doc->properties);
+		FREE_HASHTABLE(intern->libxml_start_doc->properties);
 
-	// Free the start doc
-	int refcount = php_libxml_decrement_node_ptr((php_libxml_node_object *)intern->libxml_start_doc TSRMLS_CC);
-	php_libxml_decrement_doc_ref((php_libxml_node_object *)intern->libxml_start_doc TSRMLS_CC);
+		// Free the start doc
+		int refcount = php_libxml_decrement_node_ptr((php_libxml_node_object *)intern->libxml_start_doc TSRMLS_CC);
+		php_libxml_decrement_doc_ref((php_libxml_node_object *)intern->libxml_start_doc TSRMLS_CC);
+	}
 
 	zend_object_std_dtor(&intern->std TSRMLS_CC);
 	efree(object);
