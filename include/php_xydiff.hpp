@@ -24,7 +24,7 @@
 
 // Hack for VC6
 #ifdef _MSC_VER
-#include "inttypes.h"
+#include "msinttypes.h"
 #endif
 
 #ifdef HAVE_CONFIG_H

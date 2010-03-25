@@ -40,7 +40,7 @@
 #pragma once
 #endif
 
-#include "stdint.h"
+#include "msstdint.h"
 
 // 7.8 Format conversion of integer types
 
