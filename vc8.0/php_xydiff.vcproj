@@ -4,6 +4,7 @@
 	Version="8,00"
 	Name="php_xydiff"
 	ProjectGUID="{113E44DA-9EEC-43A7-9094-000C853F0DF6}"
+	RootNamespace="php_xydiff"
 	Keyword="Win32Proj"
 	>
 	<Platforms>
@@ -41,8 +42,8 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				InlineFunctionExpansion="0"
-				AdditionalIncludeDirectories="..\..\..;..\..\..\Zend;..\..\..\TSRM;..\..\..\main;..\xydiff;..\xydiff\include;&quot;..\xerces-c-3.0.1\src&quot;;&quot;..\libxml2-2.6.31\include&quot;;&quot;..\iconv-1.9.1\include&quot;;C:\WinDDK\7600.16385.1\inc\crt;C:\WinDDK\7600.16385.1\inc\api;C:\WinDDK\7600.16385.1\inc\api\crt\stl60"
-				PreprocessorDefinitions="WIN32;PHP_EXPORTS;ZTS=1;ZEND_DEBUG=0;NDEBUG;_WINDOWS;ZEND_WIN32;PHP_WIN32;COMPILE_DL_XYDIFF;_STATIC_CPPLIB"
+				AdditionalIncludeDirectories="..\..\..;..\..\..\Zend;..\..\..\TSRM;..\..\..\main;..\xydiff;..\xydiff\include;&quot;..\xerces-c-3.0.1\src&quot;;&quot;..\libxml2-2.6.31\include&quot;;&quot;..\iconv-1.9.1\include&quot;;C:\WinDDK\7600.16385.1\inc\crt;C:\WinDDK\7600.16385.1\inc\api;C:\WinDDK\7600.16385.1\inc\api\crt\stl70"
+				PreprocessorDefinitions="WIN32;PHP_EXPORTS;ZTS=1;ZEND_DEBUG=0;NDEBUG;_WINDOWS;ZEND_WIN32;PHP_WIN32;COMPILE_DL_XYDIFF;_STATIC_CPPLIB;_STL70_"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="0"
 				RuntimeLibrary="2"
@@ -63,7 +64,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="..\lib\php5ts.lib ..\xydiff\vc8.0\Debug\libxydiffD.lib ..\xerces-c-3.0.1\Build\Win32\VC8\Debug\xerces-c_3D.lib C:\WinDDK\7600.16385.1\lib\win7\i386\msvcrt_win2000.obj"
+				AdditionalDependencies="..\lib\php5ts.lib ..\xydiff\vc8.0\Debug\libxydiffD.lib ..\xerces-c-3.0.1\Build\Win32\VC8\Debug\xerces-c_3D.lib C:\WinDDK\7600.16385.1\lib\win7\i386\ntstc_msvcrt.lib C:\WinDDK\7600.16385.1\lib\win7\i386\msvcrt_win2000.obj"
 				OutputFile="$(OutDir)/php_xydiff.dll"
 				LinkIncremental="2"
 				AdditionalLibraryDirectories="C:\WinDDK\7600.16385.1\lib\Crt\i386"
