@@ -87,8 +87,8 @@ void xydiffPHPParseHandler::fatalError(const SAXParseException& e) {
 }
 void xydiffPHPParseHandler::warning(const SAXParseException& e) {
 	std::cerr << "\n(GF) Warning at (file " << XMLString::transcode(e.getSystemId())
-	<< ", line " << e.getLineNumber()
-	<< ", char " << e.getColumnNumber()
+	<< ", line " << (long) e.getLineNumber()
+	<< ", char " << (long) e.getColumnNumber()
 	<< "): " << XMLString::transcode(e.getMessage()) << std::endl;
 }
 
