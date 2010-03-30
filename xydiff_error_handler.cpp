@@ -45,14 +45,16 @@ bool xydiffPHPParseHandler::handleError(const DOMError& domError)
 	TSRMLS_FETCH();
 	DOMLocator* locator = domError.getLocation();
 	char *exception;
+	char *locatorUri = XMLString::transcode(locator->getURI());
+	char *exceptionMsg = XMLString::transcode(domError.getMessage());
 	sprintf(exception, "Error at (file %s, line %d, char %d): %s\n",
-							  XMLString::transcode(locator->getURI()),
+							  locatorUri,
 							  locator->getLineNumber(),
 							  locator->getColumnNumber(),
-							  XMLString::transcode(domError.getMessage()));
-	zend_throw_exception(xydiff_exception_ce,
-						exception,
-						 0 TSRMLS_CC);
+							  exceptionMsg);
+	zend_throw_exception(xydiff_exception_ce, exception, 0 TSRMLS_CC);
+	XMLString::release(&locatorUri);
+	XMLString::release(&exceptionMsg);
 	delete [] exception;
 	throw VersionManagerException("xydiffPHPParseHandler", "error", "-");
 }
@@ -60,35 +62,27 @@ bool xydiffPHPParseHandler::handleError(const DOMError& domError)
 void xydiffPHPParseHandler::error(const SAXParseException& e) {
 	TSRMLS_FETCH();
 	char *exception;
-	sprintf(exception, "Error at (file %s, line %d, char %d): %s\n",
-			XMLString::transcode(e.getSystemId()),
-			e.getLineNumber(),
-			e.getColumnNumber(),
-			XMLString::transcode(e.getMessage()));
-	zend_throw_exception(xydiff_exception_ce,
-						 exception,
-						 0 TSRMLS_CC);
+	char *exceptionMsg = XMLString::transcode(e.getMessage());
+	sprintf(exception, "Error: %s\n", exceptionMsg);
+	XMLString::release(&exceptionMsg);
+	zend_throw_exception(xydiff_exception_ce, exception, 0 TSRMLS_CC);
 	delete [] exception;
+
 	throw VersionManagerException("xydiffPHPParseHandler", "error", "-");
 }
 void xydiffPHPParseHandler::fatalError(const SAXParseException& e) {
 	TSRMLS_FETCH();
 	char *exception;
-	sprintf(exception, "Fatal Error at (file %s, line %d, char %d): %s\n",
-			XMLString::transcode(e.getSystemId()),
-			e.getLineNumber(),
-			e.getColumnNumber(),
-			XMLString::transcode(e.getMessage()));
-	zend_throw_exception(xydiff_exception_ce,
-						 exception,
-						 0 TSRMLS_CC);
+	char *exceptionMsg = XMLString::transcode(e.getMessage());
+	sprintf(exception, "Fatal Error: %s\n", exceptionMsg);
+	XMLString::release(&exceptionMsg);
+	zend_throw_exception(xydiff_exception_ce, exception, 0 TSRMLS_CC);
 	delete [] exception;
 	throw VersionManagerException("xydiffPHPParseHandler", "fatal error", "-");
 }
 void xydiffPHPParseHandler::warning(const SAXParseException& e) {
-	std::cerr << "\n(GF) Warning at (file " << XMLString::transcode(e.getSystemId())
-	<< ", line " << (long) e.getLineNumber()
-	<< ", char " << (long) e.getColumnNumber()
-	<< "): " << XMLString::transcode(e.getMessage()) << std::endl;
+	char *exceptionMsg = XMLString::transcode(e.getMessage());
+	std::cerr << "\n(GF) Warning: " << exceptionMsg << std::endl;
+	XMLString::release(&exceptionMsg);
 }
 

@@ -178,7 +178,7 @@ ZEND_METHOD(xiddomdocument, __destruct)
 		zend_hash_del(intern->properties, "xiddoc", sizeof("xiddoc"));
 	}
 	
-	if (zend_hash_exists(intern->properties, "xidmap", sizeof("xidmap")) == 1) {
+	if (zend_hash_exists(intern->properties, "xidmap", sizeof("xidmap"))) {
 		zval** xidmapval;
 		if (zend_hash_find(intern->properties, "xidmap", sizeof("xidmap"), (void**)&xidmapval) == SUCCESS) {
 			char *xidmapStr = Z_STRVAL_PP(xidmapval);
@@ -264,7 +264,6 @@ int xiddomdocument_set_xidmap(php_libxml_node_object *libxml_object, char *xidma
 		zval** oldxidmapval;
 		if (zend_hash_find(libxml_object->properties, "xidmap", sizeof("xidmap"), (void**)&xidmapval) == SUCCESS) {
 			char *oldxidmapStr = Z_STRVAL_P(xidmapval);
-			efree(oldxidmapStr);
 			FREE_ZVAL(*oldxidmapval);
 			zend_hash_del(libxml_object->properties, "xidmap", strlen("xidmap"));
 		}

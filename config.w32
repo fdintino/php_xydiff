@@ -3,8 +3,8 @@
 
 ARG_WITH("xydiff", "XyDiff support", "no");
 if (PHP_XYDIFF != "no") {
-	if (!CHECK_LIB("libXyDelta.lib", "xydiff")) {
-		WARNING("Could not find libXyDelta.lib");
+	if (!CHECK_LIB("libxydiff.lib", "xydiff")) {
+		WARNING("Could not find libxydiff.lib");
 	}
 	else if (!CHECK_HEADER_ADD_INCLUDE("include/XID_DOMDocument.hpp", "CFLAGS_XYDIFF")) {
 		WARNING("Could not find header XID_DOMDocument.hpp");

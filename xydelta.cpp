@@ -72,14 +72,13 @@ static void xydelta_object_dtor(void *object TSRMLS_DC) {
 			zval** xidmapval;
 			if (zend_hash_find(intern->libxml_start_doc->properties, "xidmap", sizeof("xidmap"), (void**)&xidmapval) == SUCCESS) {
 				char *xidmapStr = Z_STRVAL_PP(xidmapval);
-				efree(xidmapStr);
 				FREE_ZVAL(*xidmapval);
 			}
 			zend_hash_del(intern->libxml_start_doc->properties, "xidmap", sizeof("xidmap"));
 		}
-		zend_hash_destroy(intern->libxml_start_doc->properties);
-		FREE_HASHTABLE(intern->libxml_start_doc->properties);
-
+		// zend_hash_destroy(intern->libxml_start_doc->properties);
+		// FREE_HASHTABLE(intern->libxml_start_doc->properties);
+		// 	
 		// Free the start doc
 		int refcount = php_libxml_decrement_node_ptr((php_libxml_node_object *)intern->libxml_start_doc TSRMLS_CC);
 		php_libxml_decrement_doc_ref((php_libxml_node_object *)intern->libxml_start_doc TSRMLS_CC);
@@ -152,30 +151,40 @@ ZEND_METHOD(xydelta, setStartDocument) {
 			RETURN_FALSE;
 		}
 
-		// Clone the object we've been passed
+		// if (node) {
+		// 	if (node->doc == NULL) {
+		// 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Imported Node must have associated Document");
+		// 		RETURN_NULL();
+		// 	}
+		// 	if (node->type == XML_DOCUMENT_NODE || node->type == XML_HTML_DOCUMENT_NODE) {
+		// 		node = xmlDocGetRootElement((xmlDocPtr) node);
+		// 	}
+		// }
+
+		// // Clone the object we've been passed
 		_zend_object_store_bucket::_store_bucket::_store_object *doc_obj;
-		zend_object_handle handle = Z_OBJ_HANDLE_P(doc);
-		
-		doc_obj = &EG(objects_store).object_buckets[handle].bucket.obj;
-		
-		zend_object_handlers *handlers = doc->value.obj.handlers;
-
-		// Set up zval to hold our cloned XIDDOMDocument
-		MAKE_STD_ZVAL(intern->z_start_doc);
-		Z_TYPE_P(intern->z_start_doc) = IS_OBJECT;
-		intern->z_start_doc->value.obj = handlers->clone_obj(doc TSRMLS_CC);
-
-
-		// Set the libxml_start_doc to the newly created php_libxml_node_object
-		intern->libxml_start_doc = (php_libxml_node_object *) zend_object_store_get_object(intern->z_start_doc TSRMLS_CC);
-
-		// Set up properties hash table
-		ALLOC_HASHTABLE(intern->libxml_start_doc->properties);
-		if (zend_hash_init(intern->libxml_start_doc->properties, 50, NULL, NULL, 0) == FAILURE) {
-			FREE_HASHTABLE(intern->libxml_start_doc->properties);
-			return;
-		}
-
+			zend_object_handle handle = Z_OBJ_HANDLE_P(doc);
+			
+			doc_obj = &EG(objects_store).object_buckets[handle].bucket.obj;
+			
+			zend_object_handlers *handlers = doc->value.obj.handlers;
+			
+			// Set up zval to hold our cloned XIDDOMDocument
+			MAKE_STD_ZVAL(intern->z_start_doc);
+			Z_TYPE_P(intern->z_start_doc) = IS_OBJECT;
+			intern->z_start_doc->value.obj = handlers->clone_obj(doc TSRMLS_CC);
+			
+			
+			// Set the libxml_start_doc to the newly created php_libxml_node_object
+			intern->libxml_start_doc = (php_libxml_node_object *) zend_object_store_get_object(intern->z_start_doc TSRMLS_CC);
+			
+			// Set up properties hash table
+			ALLOC_HASHTABLE(intern->libxml_start_doc->properties);
+			if (zend_hash_init(intern->libxml_start_doc->properties, 50, NULL, NULL, 0) == FAILURE) {
+				FREE_HASHTABLE(intern->libxml_start_doc->properties);
+				return;
+			}
+			
 		xiddomdocument_sync_with_libxml(intern->libxml_start_doc TSRMLS_CC);
 	}
 }
@@ -232,7 +241,9 @@ ZEND_METHOD(xydelta, applyDelta) {
 			if (delta_xiddoc != NULL) {
 				delete delta_xiddoc;
 			}
-			zend_throw_exception(xy_dom_exception_ce, XMLString::transcode(e.msg), 0 TSRMLS_CC);
+			char *exceptionMsg = XMLString::transcode(e.getMessage());
+			zend_throw_exception(xy_dom_exception_ce, exceptionMsg, 0 TSRMLS_CC);
+			XMLString::release(&exceptionMsg);
 		}
 		catch ( const DeltaException &e ) {
 			zend_throw_exception(xydiff_exception_ce, e.error, 0 TSRMLS_CC);
@@ -241,7 +252,9 @@ ZEND_METHOD(xydelta, applyDelta) {
 			zend_throw_exception(xydiff_exception_ce, strdup((e.context+": " +e.message).c_str()), 0 TSRMLS_CC);
 		}
 		catch(const XMLException &e) {
-			zend_throw_exception(xy_xml_exception_ce, XMLString::transcode(e.getMessage()), 0 TSRMLS_CC);
+			char *exceptionMsg = XMLString::transcode(e.getMessage());
+			zend_throw_exception(xy_xml_exception_ce, exceptionMsg, 0 TSRMLS_CC);
+			XMLString::release(&exceptionMsg);
 		}		
 		catch ( ... ) {
 			zend_throw_exception(xydiff_exception_ce, "Unexpected exception occurred", 0 TSRMLS_CC);
