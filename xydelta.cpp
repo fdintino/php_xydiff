@@ -215,25 +215,17 @@ ZEND_METHOD(xydelta, setStartDocument) {
 		node = php_libxml_import_node(doc TSRMLS_CC);
 		
 		// Do some sanity checks on the DOMDocument that was passed
-		char *error_buf;
-		
+		char *error_buf = (char *) emalloc(sizeof(char)*51);
 		if (SUCCESS != xydiff_check_libxml_document(node, &error_buf)) {
 			char error_msg [50];
 			sprintf(error_msg, "Error in start document: %s", error_buf);
 			zend_throw_exception(xydiff_exception_ce, error_msg, 0 TSRMLS_CC);
-			delete [] error_buf;
+			efree(error_buf);
 			RETURN_FALSE;
 		}
-
-		// if (node) {
-		// 	if (node->doc == NULL) {
-		// 		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Imported Node must have associated Document");
-		// 		RETURN_NULL();
-		// 	}
-		// 	if (node->type == XML_DOCUMENT_NODE || node->type == XML_HTML_DOCUMENT_NODE) {
-		// 		node = xmlDocGetRootElement((xmlDocPtr) node);
-		// 	}
-		// }
+		if (error_buf != NULL) {
+			efree(error_buf);
+		}
 
 		// // Clone the object we've been passed
 		_zend_object_store_bucket::_store_bucket::_store_object *doc_obj;

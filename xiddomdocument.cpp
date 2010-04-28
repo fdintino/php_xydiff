@@ -77,6 +77,7 @@ void register_xiddomdocument(TSRMLS_D)
 	}
 	INIT_CLASS_ENTRY(ce, "XIDDOMDocument", xiddomdocument_methods);
 	ce.create_object = xiddomdocument_object_create;
+//	xiddomdocument_object_handlers.clone_obj = xydelta_object_store_clone_obj;
 	xiddomdocument_class_entry = zend_register_internal_class_ex(&ce, *pce, NULL TSRMLS_CC);
 }
 
@@ -168,27 +169,28 @@ ZEND_METHOD(xiddomdocument, __destruct)
 		return;
 	}
 	intern = (php_libxml_node_object *) zend_object_store_get_object(id TSRMLS_CC);
-
-	if (zend_hash_exists(intern->properties, "xiddoc", sizeof("xiddoc"))) {
-		xiddoc = get_xiddomdocument(intern);
-		if (xiddoc != NULL) {
-			xiddoc->release();
-			delete xiddoc;
-		}		
-		zend_hash_del(intern->properties, "xiddoc", sizeof("xiddoc"));
-	}
-	
-	if (zend_hash_exists(intern->properties, "xidmap", sizeof("xidmap"))) {
-		zval** xidmapval;
-		if (zend_hash_find(intern->properties, "xidmap", sizeof("xidmap"), (void**)&xidmapval) == SUCCESS) {
-			char *xidmapStr = Z_STRVAL_PP(xidmapval);
-			efree(xidmapStr);
-			FREE_ZVAL(*xidmapval);
+	if (intern->properties != NULL) {
+		if (zend_hash_exists(intern->properties, "xiddoc", sizeof("xiddoc"))) {
+			xiddoc = get_xiddomdocument(intern);
+			if (xiddoc != NULL) {
+				xiddoc->release();
+				delete xiddoc;
+			}		
+			zend_hash_del(intern->properties, "xiddoc", sizeof("xiddoc"));
 		}
-		zend_hash_del(intern->properties, "xidmap", sizeof("xidmap"));
+
+		if (zend_hash_exists(intern->properties, "xidmap", sizeof("xidmap"))) {
+			zval** xidmapval;
+			if (zend_hash_find(intern->properties, "xidmap", sizeof("xidmap"), (void**)&xidmapval) == SUCCESS) {
+				char *xidmapStr = Z_STRVAL_PP(xidmapval);
+				efree(xidmapStr);
+				FREE_ZVAL(*xidmapval);
+			}
+			zend_hash_del(intern->properties, "xidmap", sizeof("xidmap"));
+		}
+		zend_hash_destroy(intern->properties);
+		FREE_HASHTABLE(intern->properties);
 	}
-	zend_hash_destroy(intern->properties);
-	FREE_HASHTABLE(intern->properties);
 }
 
 ZEND_METHOD(xiddomdocument, getXidMap)
@@ -496,6 +498,13 @@ XID_DOMDocument * libxml_domdocument_to_xid_domdocument(php_libxml_node_object *
 	zval** xidmapval;
 	XID_DOMDocument* xiddomdoc = NULL;
 	char *errormsg = NULL;
+	if (libxml_obj->properties == NULL) {
+		// Set up properties hash table
+		ALLOC_HASHTABLE(libxml_obj->properties);
+		if (zend_hash_init(libxml_obj->properties, 50, NULL, NULL, 0) == FAILURE) {
+			FREE_HASHTABLE(libxml_obj->properties);
+		}
+	}
 	if (zend_hash_find(libxml_obj->properties, "xidmap", sizeof("xidmap"), (void**)&xidmapval) == SUCCESS) {
 		xidmapStr = Z_STRVAL_PP(xidmapval);
 		if (xidmapStr != NULL && strlen(xidmapStr) > 0) {
