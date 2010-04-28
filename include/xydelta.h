@@ -19,6 +19,7 @@ void register_xydelta(TSRMLS_D);
 static void xydelta_object_dtor(void *object TSRMLS_DC);
 static void xydelta_object_clone(void *object, void **object_clone TSRMLS_DC);
 zend_object_value xydelta_object_create(zend_class_entry *class_type TSRMLS_DC);
+zend_object_value xydelta_object_store_clone_obj(zval *zobject TSRMLS_DC);
 
 ZEND_METHOD(xydelta, __construct);
 ZEND_METHOD(xydelta, setStartDocument);
