@@ -55,18 +55,19 @@ void register_xydelta(TSRMLS_D) {
 		xy_xml_exception_ce = zend_exception_get_default(TSRMLS_C);
 	} else {
 		xy_xml_exception_ce = *xy_xml_exception_ce_ptr;
-	}	
+	}
+
 }
 
 static void xydelta_object_dtor(void *object TSRMLS_DC) {
 	xydelta_object *intern = (xydelta_object *)object;
 	if (intern->libxml_start_doc) {
 		if (zend_hash_exists(intern->libxml_start_doc->properties, "xiddoc", sizeof("xiddoc"))) {
-			XID_DOMDocument *xiddoc = get_xiddomdocument(intern->libxml_start_doc);
-			if (xiddoc != NULL) {
-				xiddoc->release();
-				delete xiddoc;
-			}		
+			// XID_DOMDocument *xiddoc = get_xiddomdocument(intern->libxml_start_doc);
+			// if (xiddoc != NULL) {
+			// 	// xiddoc->release();
+			// 	delete xiddoc;
+			// }		
 			zend_hash_del(intern->libxml_start_doc->properties, "xiddoc", sizeof("xiddoc"));
 		}
 		if (zend_hash_exists(intern->libxml_start_doc->properties, "xidmap", sizeof("xidmap")) == 1) {
@@ -81,6 +82,9 @@ static void xydelta_object_dtor(void *object TSRMLS_DC) {
 		if (intern->libxml_start_doc != NULL) {
 			int refcount = php_libxml_decrement_node_ptr((php_libxml_node_object *)intern->libxml_start_doc TSRMLS_CC);
 			php_libxml_decrement_doc_ref((php_libxml_node_object *)intern->libxml_start_doc TSRMLS_CC);
+			if (intern->libxml_start_doc->properties != NULL) {
+				FREE_HASHTABLE(intern->libxml_start_doc->properties);
+			}
 		}
 		if (intern->z_start_doc != NULL) {
 			zval_ptr_dtor(&intern->z_start_doc);
@@ -261,14 +265,13 @@ ZEND_METHOD(xydelta, applyDelta) {
 	zend_bool apply_annotations = 0;
 	
 	xmlNode *node = NULL;
-	php_libxml_node_object *delta_libxml_obj;
+	php_libxml_node_object *delta_libxml_obj = NULL;
 	XID_DOMDocument *delta_xiddoc = NULL;
-	xmlDocPtr libxml_result_doc = NULL;
-	char *xidmap = NULL;
 
 	zval *rv = NULL;
 	int ret;
-	
+
+	XID_DOMDocument *resultXidDoc;
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oo|b", &id, xydelta_ce, &deltadoc, &apply_annotations) == FAILURE) {
 		RETURN_FALSE;
 	}
@@ -299,12 +302,11 @@ ZEND_METHOD(xydelta, applyDelta) {
 		XID_DOMDocument *start_xiddoc = get_xiddomdocument(intern->libxml_start_doc);
 
 
-		DOMDocument *resultDoc = NULL;
 		try {
 			DOMElement *deltaDocRoot = delta_xiddoc->getDocumentElement();
 			DOMNode *tNode = deltaDocRoot->getFirstChild();
 			start_xiddoc->addXidMap(NULL);
-			resultDoc = XyDelta::ApplyDelta(start_xiddoc, tNode, (bool) int_apply_annotations );
+			resultXidDoc = XyDelta::ApplyDelta(start_xiddoc, tNode, (bool) int_apply_annotations );
 		}
 		catch ( const DOMException &e ) {
 			if (delta_xiddoc != NULL) {
@@ -328,25 +330,17 @@ ZEND_METHOD(xydelta, applyDelta) {
 		catch ( ... ) {
 			zend_throw_exception(xydiff_exception_ce, "Unexpected exception occurred", 0 TSRMLS_CC);
 		}
-		if (resultDoc != NULL) {
-			XID_DOMDocument *resultXidDoc = new XID_DOMDocument(resultDoc);
-			libxml_result_doc = xid_domdocument_to_libxml_domdocument( resultXidDoc TSRMLS_CC );
-
-			// Release resources (free memory) associated with the XID_DOMDocument of the result
-			if (resultXidDoc != NULL) {
-				resultXidDoc->release();
-				delete resultXidDoc;
-			}
-			DOM_RET_OBJ(rv, (xmlNodePtr) libxml_result_doc, &ret, NULL);
+		if (resultXidDoc != NULL) {
+			XIDDOC_RET_OBJ(rv, resultXidDoc, &ret);
 		}
+
 		if (delta_xiddoc != NULL) {
 			delete delta_xiddoc;
 		}
-		// Free up memory
-		if (resultDoc != NULL) {
-			resultDoc->release();
-		}
-		if (!libxml_result_doc)
+
+		if (!resultXidDoc) {
 			RETURN_FALSE;
+		}
+
 	}
 }
