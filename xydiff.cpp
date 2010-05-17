@@ -91,8 +91,8 @@ PHP_MINIT_FUNCTION(xydiff)
 
 	// The XyDiffException class has to be registered first for the other two classes to access it
 	register_xydiff_exception(TSRMLS_C);
-	register_xiddomdocument(TSRMLS_C);
 	register_xydiff(TSRMLS_C);
+	register_xiddomdocument(TSRMLS_C);
 	register_xydelta(TSRMLS_C);
 
 	

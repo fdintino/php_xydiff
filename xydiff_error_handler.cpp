@@ -55,7 +55,7 @@ bool xydiffPHPParseHandler::handleError(const DOMError& domError)
 	zend_throw_exception(xydiff_exception_ce, exception, 0 TSRMLS_CC);
 	XMLString::release(&locatorUri);
 	XMLString::release(&exceptionMsg);
-	delete [] exception;
+	// delete [] exception;
 	throw VersionManagerException("xydiffPHPParseHandler", "error", "-");
 }
 
@@ -66,7 +66,7 @@ void xydiffPHPParseHandler::error(const SAXParseException& e) {
 	sprintf(exception, "Error: %s\n", exceptionMsg);
 	XMLString::release(&exceptionMsg);
 	zend_throw_exception(xydiff_exception_ce, exception, 0 TSRMLS_CC);
-	delete [] exception;
+	// delete [] exception;
 
 	throw VersionManagerException("xydiffPHPParseHandler", "error", "-");
 }
@@ -77,7 +77,7 @@ void xydiffPHPParseHandler::fatalError(const SAXParseException& e) {
 	sprintf(exception, "Fatal Error: %s\n", exceptionMsg);
 	XMLString::release(&exceptionMsg);
 	zend_throw_exception(xydiff_exception_ce, exception, 0 TSRMLS_CC);
-	delete [] exception;
+	// delete [] exception;
 	throw VersionManagerException("xydiffPHPParseHandler", "fatal error", "-");
 }
 void xydiffPHPParseHandler::warning(const SAXParseException& e) {

@@ -17,8 +17,11 @@ typedef struct _xiddomdoc_object {
 	zend_class_entry *pce_ptr;
 } xiddomdoc_object;
 
-void xiddomdocument_object_dtor(void *object TSRMLS_DC);
+static void xiddomdocument_object_dtor(void *object TSRMLS_DC);
 zend_object_value xiddomdocument_object_create(zend_class_entry *class_type TSRMLS_DC);
+static void xiddomdocument_objects_clone(void *object, void **object_clone TSRMLS_DC);
+zend_object_value xiddomdocument_store_clone_obj(zval *zobject TSRMLS_DC);
+
 void register_xiddomdocument(TSRMLS_D);
 void xiddomdocument_sync_with_libxml(php_libxml_node_object *libxml_object TSRMLS_DC, bool hasNewXidmap = false);
 XID_DOMDocument * get_xiddomdocument(php_libxml_node_object *object);

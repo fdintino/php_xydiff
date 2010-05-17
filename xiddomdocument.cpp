@@ -70,6 +70,7 @@ void register_xiddomdocument(TSRMLS_D)
 
 	// Initialize XIDDOMDocument class as extension of DOMDocument class
 	memcpy(&xiddomdocument_object_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
+	xiddomdocument_object_handlers.clone_obj = xiddomdocument_store_clone_obj;
 	zend_class_entry ce;
 	zend_class_entry **pce;
 	if (zend_hash_find(CG(class_table), "domdocument", sizeof("domdocument"), (void **) &pce) == FAILURE) {
@@ -105,15 +106,102 @@ zend_object_value xiddomdocument_object_create(zend_class_entry *class_type TSRM
 	
 	retval.handle = zend_objects_store_put(intern,
 										   (zend_objects_store_dtor_t)zend_objects_destroy_object,
-										   (zend_objects_free_object_storage_t) xiddomdocument_object_dtor, NULL TSRMLS_CC);
+										   (zend_objects_free_object_storage_t) xiddomdocument_object_dtor, xiddomdocument_objects_clone TSRMLS_CC);
 	intern->handle = retval.handle;
 	retval.handlers = &xiddomdocument_object_handlers;
 	return retval;
 }
 
+static void xiddomdocument_objects_clone(void *object, void **object_clone TSRMLS_DC)
+{
+	dom_object *intern = (dom_object *) object;
+	dom_object *clone;
+	xmlNodePtr node;
+	xmlNodePtr cloned_node;
 
+	clone = xiddomdocument_set_class(intern->std.ce, 0 TSRMLS_CC);
 
-void xiddomdocument_object_dtor(void *object TSRMLS_DC)
+	if (instanceof_function(intern->std.ce, dom_node_class_entry TSRMLS_CC)) {
+		node = (xmlNodePtr)dom_object_get_node((dom_object *) object);
+		if (node != NULL) {
+			cloned_node = xmlDocCopyNode(node, node->doc, 1);
+			if (cloned_node != NULL) {
+				/* If we cloned a document then we must create new doc proxy */
+				if (cloned_node->doc == node->doc) {
+					clone->document = intern->document;
+				}
+				php_libxml_increment_doc_ref((php_libxml_node_object *)clone, cloned_node->doc TSRMLS_CC);
+				php_libxml_increment_node_ptr((php_libxml_node_object *)clone, cloned_node, (void *)clone TSRMLS_CC);
+				if (intern->document != clone->document) {
+					dom_copy_doc_props(intern->document, clone->document);
+				}
+			}
+
+		}
+	}
+	php_libxml_node_object *internxml = (php_libxml_node_object *) intern;
+	php_libxml_node_object *clonexml = (php_libxml_node_object *) clone;
+	XID_DOMDocument *xiddoc;
+	if (internxml->properties != NULL) {
+		if (zend_hash_exists(internxml->properties, "xiddoc", sizeof("xiddoc"))) {
+			xiddoc = get_xiddomdocument(internxml);
+			if (xiddoc != NULL) {
+				XID_DOMDocument *xiddoc_clone = NULL;
+				xiddoc_clone = XID_DOMDocument::copy(xiddoc, true);
+				uintptr_t xiddocptr = (uintptr_t) xiddoc_clone;
+				zend_hash_update(clonexml->properties, "xiddoc", sizeof("xiddoc"), &xiddocptr, sizeof(uintptr_t), NULL);
+			}		
+			
+		}
+	}
+	*object_clone = (void *) clone;
+}
+
+zend_object_value xiddomdocument_store_clone_obj(zval *zobject TSRMLS_DC)
+{
+	zend_object_value retval;
+	void *new_object;
+	dom_object *intern;
+	dom_object *old_object;
+	_zend_object_store_bucket::_store_bucket::_store_object *obj;
+	zend_object_handle handle = Z_OBJ_HANDLE_P(zobject);
+
+	obj = &EG(objects_store).object_buckets[handle].bucket.obj;
+	
+	if (obj->clone == NULL) {
+		php_error(E_ERROR, "Trying to clone an uncloneable object of class %s", Z_OBJCE_P(zobject)->name);
+	}		
+
+	obj->clone(obj->object, &new_object TSRMLS_CC);
+
+	retval.handle = zend_objects_store_put(new_object, obj->dtor, obj->free_storage, obj->clone TSRMLS_CC);
+	intern = (dom_object *) new_object;
+	intern->handle = retval.handle;
+	retval.handlers = Z_OBJ_HT_P(zobject);
+	
+	old_object = (dom_object *) obj->object;
+	zend_objects_clone_members(&intern->std, retval, &old_object->std, intern->handle TSRMLS_CC);
+
+	php_libxml_node_object *internxml = (php_libxml_node_object *) old_object;
+	php_libxml_node_object *clonexml = (php_libxml_node_object *) intern;
+	XID_DOMDocument *xiddoc;
+	if (internxml->properties != NULL) {
+		if (zend_hash_exists(internxml->properties, "xiddoc", sizeof("xiddoc"))) {
+			xiddoc = get_xiddomdocument(internxml);
+			if (xiddoc != NULL) {
+				XID_DOMDocument *xiddoc_clone = NULL;
+				xiddoc_clone = XID_DOMDocument::copy(xiddoc, true);
+				uintptr_t xiddocptr = (uintptr_t) xiddoc_clone;
+				zend_hash_update(clonexml->properties, "xiddoc", sizeof("xiddoc"), &xiddocptr, sizeof(uintptr_t), NULL);
+			}		
+			
+		}
+	}
+
+	return retval;
+}
+
+static void xiddomdocument_object_dtor(void *object TSRMLS_DC)
 {
 	php_libxml_node_object *intern = (php_libxml_node_object *) object;
 
@@ -175,12 +263,6 @@ XID_DOMDocument * get_xiddomdocument(php_libxml_node_object *object)
 	}
 }
 
-void propDestructor(void *pElement);
-void propDestructor(void *pElement)
-{
-	pElement = NULL;
-}
-
 ZEND_METHOD(xiddomdocument, __destruct)
 {
 	zval *id;
@@ -195,7 +277,7 @@ ZEND_METHOD(xiddomdocument, __destruct)
 		if (zend_hash_exists(intern->properties, "xiddoc", sizeof("xiddoc"))) {
 			xiddoc = get_xiddomdocument(intern);
 			if (xiddoc != NULL) {
-				xiddoc->release();
+				// xiddoc->release();
 				// delete xiddoc;
 			}		
 			zend_hash_del(intern->properties, "xiddoc", sizeof("xiddoc"));
@@ -316,7 +398,7 @@ ZEND_METHOD(xiddomdocument, generateXidTaggedDocument)
 	xiddoc = get_xiddomdocument(intern);
 	XID_DOMDocument* d = NULL;
 	try {
-		d = XID_DOMDocument::copy(xiddoc);
+		d = XID_DOMDocument::copy(xiddoc, true);
 		
 		DOMNode* root = (DOMNode *) d->getDocumentElement();
 		if (root!=NULL) Restricted::XidTagSubtree(d, root);
@@ -326,10 +408,11 @@ ZEND_METHOD(xiddomdocument, generateXidTaggedDocument)
 			d->release();
 			delete d;
 		}
-		if (!libxmldoc)
+		if (!libxmldoc) {
 			RETURN_FALSE;
-		DOM_RET_OBJ(rv, (xmlNodePtr) libxmldoc, &ret, NULL);
-		
+		} else {
+			DOM_RET_OBJ(rv, (xmlNodePtr) libxmldoc, &ret, NULL);
+		}
 	}
 	catch( const DOMException& e ) {
 		char *exceptionMsg = XMLString::transcode(e.msg);
@@ -390,6 +473,16 @@ ZEND_METHOD(xiddomdocument, __construct)
 		} else {
 			zend_call_method_with_0_params(&self, ce, &ctor, ZEND_CONSTRUCTOR_FUNC_NAME, NULL);
 		}
+	}
+	// Initialize 'properties' HashTable, which we use to store the pointer to the associated C++ 
+	// XID_DOMDocument object 
+	php_libxml_node_object *xml_object = (php_libxml_node_object *) intern; 
+	if (xml_object->properties == NULL) {
+		ALLOC_HASHTABLE(xml_object->properties); 
+		if (zend_hash_init(xml_object->properties, 50, NULL, NULL, 0) == FAILURE) { 
+			FREE_HASHTABLE(xml_object->properties); 
+			return;
+		}		
 	}
 }
 
@@ -715,7 +808,7 @@ zval *xiddomdocument_create(XID_DOMDocument *xiddoc, int *found, zval *in, zval 
 		ZVAL_NULL(wrapper);
 		return wrapper;
 	}
-	xiddomdocument_set_xidmap(xml_object, xidmap TSRMLS_CC);
+	// xiddomdocument_set_xidmap(xml_object, xidmap TSRMLS_CC);
 
 	return (wrapper);
 }

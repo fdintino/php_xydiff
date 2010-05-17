@@ -63,11 +63,11 @@ static void xydelta_object_dtor(void *object TSRMLS_DC) {
 	xydelta_object *intern = (xydelta_object *)object;
 	if (intern->libxml_start_doc) {
 		if (zend_hash_exists(intern->libxml_start_doc->properties, "xiddoc", sizeof("xiddoc"))) {
-			// XID_DOMDocument *xiddoc = get_xiddomdocument(intern->libxml_start_doc);
-			// if (xiddoc != NULL) {
-			// 	// xiddoc->release();
-			// 	delete xiddoc;
-			// }		
+			XID_DOMDocument *xiddoc = get_xiddomdocument(intern->libxml_start_doc);
+			if (xiddoc != NULL) {
+				// xiddoc->release();
+				// delete xiddoc;
+			}		
 			zend_hash_del(intern->libxml_start_doc->properties, "xiddoc", sizeof("xiddoc"));
 		}
 		if (zend_hash_exists(intern->libxml_start_doc->properties, "xidmap", sizeof("xidmap")) == 1) {
@@ -82,9 +82,9 @@ static void xydelta_object_dtor(void *object TSRMLS_DC) {
 		if (intern->libxml_start_doc != NULL) {
 			int refcount = php_libxml_decrement_node_ptr((php_libxml_node_object *)intern->libxml_start_doc TSRMLS_CC);
 			php_libxml_decrement_doc_ref((php_libxml_node_object *)intern->libxml_start_doc TSRMLS_CC);
-			if (intern->libxml_start_doc->properties != NULL) {
-				FREE_HASHTABLE(intern->libxml_start_doc->properties);
-			}
+			// if (intern->libxml_start_doc->properties != NULL) {
+			// 	FREE_HASHTABLE(intern->libxml_start_doc->properties);
+			// }
 		}
 		if (intern->z_start_doc != NULL) {
 			zval_ptr_dtor(&intern->z_start_doc);
@@ -224,7 +224,7 @@ ZEND_METHOD(xydelta, setStartDocument) {
 			char error_msg [50];
 			sprintf(error_msg, "Error in start document: %s", error_buf);
 			zend_throw_exception(xydiff_exception_ce, error_msg, 0 TSRMLS_CC);
-			efree(error_buf);
+			// efree(error_buf);
 			RETURN_FALSE;
 		}
 		if (error_buf != NULL) {

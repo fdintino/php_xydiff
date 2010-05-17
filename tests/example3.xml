@@ -1,26 +1,31 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <Groupe>
-	<personne>
-		<name>Cobena</name>
-		<first>Grégory</first>
-		<tel>5661</tel>
-		<email>Gregory.Cobena@inria.fr</email>
-	</personne>
-	<personne away="yes" pos="these">
-		<name>Marian</name>
-		<first>Amelie</first>
-		<email>Amelie.Marian@inria.fr</email>
-		<place>U. Columbia</place>
-	</personne>
-	<personne away="yes">
-		<email>sjacqmin@sinorg.fr</email>
-		<first>Sandrine</first>
-		<name>Jacqmin</name>
-	</personne>
-	<personne away="no" pos="these">
-		<name>Mignet</name>
-		<first>Laurent</first>
-		<email>lmignet@inria.fr</email>
-		<tel>5722</tel>
-	</personne>
+
+  <personne>
+    <name>Cobena</name>
+    <first>Gregory</first>
+    <tel>5661</tel>
+    <email>Gregory.Cobena@inria.fr</email>
+  </personne>
+
+  <personne away="yes" pos="these">
+    <name>Marian</name>
+    <first>Amelie</first>
+    <email>Amelie.Marian@inria.fr</email>
+    <place>U. Columbia</place>
+  </personne>
+
+  <personne away="yes">
+    <email>sjacqmin@sinorg.fr</email>
+    <first>Sandrine</first>
+    <name>Jacqmin</name>
+  </personne>
+
+  <personne away="no" pos="these">
+    <name>Mignet</name>
+    <first>Laurent</first>
+    <email>lmignet@inria.fr</email>
+    <tel>5722</tel>
+  </personne>
+
 </Groupe>
