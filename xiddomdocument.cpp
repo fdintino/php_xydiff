@@ -715,7 +715,7 @@ zval *xiddomdocument_create(XID_DOMDocument *xiddoc, int *found, zval *in, zval 
 		ZVAL_NULL(wrapper);
 		return wrapper;
 	}
-	xiddomdocument_set_xidmap(xml_object, xidmap);
+	xiddomdocument_set_xidmap(xml_object, xidmap TSRMLS_CC);
 
 	return (wrapper);
 }
