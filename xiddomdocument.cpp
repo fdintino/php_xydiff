@@ -497,8 +497,8 @@ xmlDocPtr xid_domdocument_to_libxml_domdocument(XID_DOMDocument *xiddoc TSRMLS_D
 	theOutput->setByteStream(myFormatTarget);
 	
 	try {
-		if (theSerializer->getDomConfig()->canSetParameter(XMLUni::fgDOMWRTFormatPrettyPrint, false))
-			theSerializer->getDomConfig()->setParameter(XMLUni::fgDOMWRTFormatPrettyPrint, false);
+		if (theSerializer->getDomConfig()->canSetParameter(XMLUni::fgDOMWRTFormatPrettyPrint, true))
+			theSerializer->getDomConfig()->setParameter(XMLUni::fgDOMWRTFormatPrettyPrint, true);
 		if (theSerializer->getDomConfig()->canSetParameter(XMLUni::fgDOMXMLDeclaration, true)) 
 		    theSerializer->getDomConfig()->setParameter(XMLUni::fgDOMXMLDeclaration, true);		
 		theSerializer->write((DOMDocument*)xiddoc, theOutput);
@@ -559,26 +559,10 @@ XID_DOMDocument * libxml_domdocument_to_xid_domdocument(php_libxml_node_object *
 	docp = (xmlDocPtr) libxml_obj->document->ptr;
 	doc_props = dom_get_doc_props(libxml_obj);
 	format = doc_props->formatoutput;
-	xmlDocDumpMemoryEnc(docp, &mem, &size, "UTF-8");
-	wchar_t *xmlString = (wchar_t *) emalloc((size + 1) * sizeof(wchar_t));
-	unsigned int i = 0;
-	int len = xmlUTF8Strlen(mem);
-	wchar_t charVal = NULL;
-	int consumed;
-	int pos = 0;
-	while (i < size) {
-		const xmlChar *tmpChar = xmlUTF8Strpos(mem, pos);
-		consumed = 4;
-		charVal = (wchar_t) xmlGetUTF8Char(tmpChar, &consumed);
-		wchar_t *tmp = (wchar_t *) xmlUTF8Strsub(mem, pos, 1);
-		memcpy(&xmlString[pos], &charVal, sizeof(wchar_t));
-		pos++;
-		i += consumed;
-	}
-	xmlString[pos] = '\0';
+	xmlDocDumpFormatMemory(docp, &mem, &size, format);
+	
+	const char *xmlString = (const char *)mem;
 	static const XMLCh gLS[] = { chLatin_L, chLatin_S, chNull };
-	XMLCh encoding[7];
-	XMLString::transcode("UTF-32", encoding, 6);
 	DOMImplementation *impl = NULL;
 	DOMLSParser *theParser = NULL;
 	DOMDocument *domdoc;
@@ -588,9 +572,8 @@ XID_DOMDocument * libxml_domdocument_to_xid_domdocument(php_libxml_node_object *
 		theParser = ((DOMImplementationLS*)impl)->createLSParser(DOMImplementationLS::MODE_SYNCHRONOUS, 0);
 		theParser->getDomConfig()->setParameter(XMLUni::fgXercesUserAdoptsDOMDocument, true);
 		DOMErrorHandler * handler = new xydiffPHPParseHandler();
-		MemBufInputSource *memIS = new MemBufInputSource((const XMLByte *)xmlString, size*sizeof(wchar_t), "test", false);
-		Wrapper4InputSource *wrapper = new Wrapper4InputSource(memIS, false);
-		wrapper->setEncoding(encoding);
+		MemBufInputSource *memIS = new MemBufInputSource((const XMLByte *)xmlString, strlen(xmlString), "test", false);
+		Wrapper4InputSource *wrapper = new Wrapper4InputSource(memIS, false);		
 		theParser->getDomConfig()->setParameter(XMLUni::fgDOMErrorHandler, handler);
 		xiddoc = theParser->parse((DOMLSInput *) wrapper);
 
@@ -614,7 +597,6 @@ XID_DOMDocument * libxml_domdocument_to_xid_domdocument(php_libxml_node_object *
 	}
 	if (size) {
 		xmlFree(mem);
-		efree(xmlString);
 	}
 
 	// Try creating with xidmap if the user has defined one
@@ -655,7 +637,7 @@ XID_DOMDocument * libxml_domdocument_to_xid_domdocument(php_libxml_node_object *
 	// Create XID_DOMDocument without a user-defined xidmap
 	if (xiddomdoc == NULL) {
 		try {
-			xiddomdoc = new XID_DOMDocument(xiddoc, NULL, false);
+			xiddomdoc = new XID_DOMDocument(xiddoc, NULL, true);
 			// If we have a xidmapStr this means that setting the XID_DOMDocument with
 			// the new xidmap value failed
 			if (xidmapStr != NULL && strlen(xidmapStr) > 0) {
