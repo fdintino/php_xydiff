@@ -271,7 +271,7 @@ ZEND_METHOD(xydelta, applyDelta) {
 	zval *rv = NULL;
 	int ret;
 
-	XID_DOMDocument *resultXidDoc;
+	XID_DOMDocument *resultXidDoc = NULL;
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oo|b", &id, xydelta_ce, &deltadoc, &apply_annotations) == FAILURE) {
 		RETURN_FALSE;
 	}
