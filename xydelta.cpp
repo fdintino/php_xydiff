@@ -211,6 +211,7 @@ ZEND_METHOD(xydelta, setStartDocument) {
 	php_libxml_node_object *xml_object;
 
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oo", &id, xydelta_ce, &doc) == FAILURE) {
+		zend_throw_exception(xydiff_exception_ce, "Argument to XyDelta::setStartDocument must be of type DOMDocument", 0 TSRMLS_CC);
 		RETURN_FALSE;
 	}
 

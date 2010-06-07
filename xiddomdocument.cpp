@@ -398,6 +398,11 @@ ZEND_METHOD(xiddomdocument, generateXidTaggedDocument)
 	xiddoc = get_xiddomdocument(intern);
 	XID_DOMDocument* d = NULL;
 	try {
+		if (xiddoc == NULL) {
+			xiddomdocument_sync_with_libxml(intern TSRMLS_CC);
+			xiddoc = get_xiddomdocument(intern);
+		}
+		xiddoc->addXidMap();
 		d = XID_DOMDocument::copy(xiddoc, true);
 		
 		DOMNode* root = (DOMNode *) d->getDocumentElement();
