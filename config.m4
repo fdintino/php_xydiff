@@ -86,7 +86,7 @@ if test "$PHP_XYDIFF" != "no"; then
 
 	# --with-xydiff -> check for library
 	if test ! -f "$XYDIFF_LIB_DIR/lib/libXyDelta.a"; then
-		AC_MSG_ERROR([libXyDelta.dylib not found in $XYDIFF_LIB_DIR/lib])
+		AC_MSG_ERROR([libXyDelta.a not found in $XYDIFF_LIB_DIR/lib])
 	fi
 
 	# --with-xydiff -> add library
