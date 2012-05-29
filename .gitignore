@@ -22,3 +22,4 @@ modules
 ._*
 *.lo
 *.la
+run-tests.php
