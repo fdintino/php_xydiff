@@ -41,7 +41,7 @@
 #include "xercesc/sax/SAXParseException.hpp"
 #include "xercesc/dom/DOMLocator.hpp"
 
-#include "include/XyDelta_DOMInterface.hpp"
+#include "xydiff/XyDelta_DOMInterface.hpp"
 #include "include/xydiffprocessor.h"
 #include "include/xiddomdocument.h"
 

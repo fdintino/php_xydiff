@@ -78,7 +78,7 @@ if test "$PHP_XYDIFF" != "no"; then
 	PHP_ADD_INCLUDE($XERCESC_PREFIX/include)
 	PHP_ADD_LIBRARY_WITH_PATH(xerces-c, $XERCESC_PREFIX/lib, XYDIFF_SHARED_LIBADD)
 
-	XYDIFF_CHECK_HEADER(include/XID_DOMDocument.hpp)
+	XYDIFF_CHECK_HEADER(include/xydiff/XID_DOMDocument.hpp)
 
 	# --with-xydiff -> add include path
 	PHP_ADD_INCLUDE($XYDIFF_LIB_DIR)

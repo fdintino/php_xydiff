@@ -7,7 +7,7 @@
 #ifndef XYDIFF_ERROR_HANDLER_H
 #define XYDIFF_ERROR_HANDLER_H
 
-#include "include/XID_map.hpp"
+#include "xydiff/XID_map.hpp"
 
 #include "xercesc/dom/DOMDocument.hpp"
 #include "xercesc/dom/DOMConfiguration.hpp"
@@ -21,7 +21,7 @@
 #include "xercesc/sax/SAXException.hpp"
 #include "xercesc/sax/SAXParseException.hpp"
 
-#include "Tools.hpp"
+#include "xydiff/VersionManagerException.hpp"
 void register_xydiff_exception(TSRMLS_D);
 
 class xydiffPHPParseHandler : public xercesc::DOMErrorHandler {

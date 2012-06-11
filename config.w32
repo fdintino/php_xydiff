@@ -6,7 +6,7 @@ if (PHP_XYDIFF != "no") {
 	if (!CHECK_LIB("libxydiff.lib", "xydiff")) {
 		WARNING("Could not find libxydiff.lib");
 	}
-	else if (!CHECK_HEADER_ADD_INCLUDE("include/XID_DOMDocument.hpp", "CFLAGS_XYDIFF")) {
+	else if (!CHECK_HEADER_ADD_INCLUDE("xydiff/XID_DOMDocument.hpp", "CFLAGS_XYDIFF")) {
 		WARNING("Could not find header XID_DOMDocument.hpp");
 	}
 	else if (!CHECK_HEADER_ADD_INCLUDE("libxml/parser.h", "CFLAGS_XYDIFF")) {

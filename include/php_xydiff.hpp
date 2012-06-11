@@ -65,14 +65,14 @@ extern zend_module_entry xydiff_module_entry;
 
 
 
-#include "Tools.hpp"
-#include "include/XID_map.hpp"
+#include "xydiff/VersionManagerException.hpp"
+#include "xydiff/XID_map.hpp"
 
-#include "include/XID_DOMDocument.hpp"
-#include "include/XyDelta_DOMInterface.hpp"
-#include "include/XyLatinStr.hpp"
-#include "include/XID_DOMDocument.hpp"
-#include "DeltaException.hpp"
+#include "xydiff/XID_DOMDocument.hpp"
+#include "xydiff/XyDelta_DOMInterface.hpp"
+#include "xydiff/XyLatinStr.hpp"
+#include "xydiff/XID_DOMDocument.hpp"
+#include "xydiff/DeltaException.hpp"
 #include "zend_exceptions.h"
 
 #include <cstring>
