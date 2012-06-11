@@ -30,12 +30,38 @@ $xydelta = new XyDelta();
 $xydelta->setStartDocument($dom1a);
 $result = $xydelta->applyDelta($delta);
 
-if ($result->saveXML() == $dom2->saveXML()) {
-	echo "DeltaApply result matches original.";
-} else {
-	echo "DeltaApply result does not match original.";
-}
-
+echo $result->saveXML();
 ?>
 --EXPECT--
-DeltaApply result matches original.
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<Groupe>
+
+  <personne>
+    <name>Cobena</name>
+    <first>Gregory</first>
+    <tel>5662</tel>
+    <email>Gregory.Cobena@inria.fr</email>
+  </personne>
+
+  <personne away="yes">
+    <name>Marian</name>
+    <first>Amelie</first>
+    <email>Amelie.Marian@inria.fr</email>
+    <place>U. Columbia</place>
+  </personne>
+
+  <personne away="yes">
+    <email>sjacqmin@sinorg.fr</email>
+    <first>Sandrine</first>
+    <name>Jacqmin</name>
+  </personne>
+
+  <personne away="no">
+    <name>Mignet</name>
+    <first>Laurent</first>
+    <email>Laurent.Mignet@inria.fr</email>
+    <tel>5722</tel>
+    <tel>01.40.29.44.95</tel>
+  </personne>
+
+</Groupe>
