@@ -57,6 +57,7 @@ Installation
      --with-xercesc-dir= $XERCESC_DIR \
      --with-libxml-dir=$LIBXML_DIR
      make
+     make test
      sudo make install
      </pre>
  6. Edit your php.ini file, adding the line:
