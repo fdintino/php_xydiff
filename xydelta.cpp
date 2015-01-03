@@ -98,7 +98,9 @@ static void xydelta_object_dtor(void *object TSRMLS_DC) {
 static xydelta_object* xydelta_object_set_class(zend_class_entry *class_type, zend_bool hash_copy TSRMLS_DC) /* {{{ */
 {
 	// zend_class_entry *base_class;
+#if PHP_VERSION_ID < 50399
 	zval *tmp;
+#endif
 	xydelta_object *intern;
 
  	intern = (xydelta_object *) emalloc(sizeof(xydelta_object));
@@ -111,7 +113,11 @@ static xydelta_object* xydelta_object_set_class(zend_class_entry *class_type, ze
 
 	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
 	if (hash_copy) {
+#if PHP_VERSION_ID < 50399
 		zend_hash_copy(intern->std.properties, &class_type->default_properties, (copy_ctor_func_t) zval_add_ref, (void *) &tmp, sizeof(zval *));
+#else
+		object_properties_init(&intern->std, class_type);
+#endif
 	}
 
 	return intern;
@@ -163,7 +169,11 @@ zend_object_value xydelta_object_store_clone_obj(zval *zobject TSRMLS_DC)
 	
 	z_start_doc_clone = &EG(objects_store).object_buckets[z_start_doc_handle].bucket.obj;
 	
+#if PHP_VERSION_ID < 50399
 	zend_object_handlers *handlers = old_object->z_start_doc->value.obj.handlers;
+#else
+	const zend_object_handlers *handlers = old_object->z_start_doc->value.obj.handlers;
+#endif
 	
 	// Set up zval to hold our cloned XIDDOMDocument
 	MAKE_STD_ZVAL(intern->z_start_doc);
@@ -238,8 +248,12 @@ ZEND_METHOD(xydelta, setStartDocument) {
 		
 		doc_obj = &EG(objects_store).object_buckets[handle].bucket.obj;
 		
+#if PHP_VERSION_ID < 50399
 		zend_object_handlers *handlers = doc->value.obj.handlers;
-		
+#else
+		const zend_object_handlers *handlers = doc->value.obj.handlers;
+#endif
+
 		// Set up zval to hold our cloned XIDDOMDocument
 		MAKE_STD_ZVAL(intern->z_start_doc);
 		Z_TYPE_P(intern->z_start_doc) = IS_OBJECT;

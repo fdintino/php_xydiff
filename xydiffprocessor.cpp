@@ -85,13 +85,19 @@ static void xydiff_object_dtor(void *object TSRMLS_DC) {
 zend_object_value xydiff_object_create(zend_class_entry *class_type TSRMLS_DC) {
 	zend_object_value retval;
 	xydiff_object *intern;
+#if PHP_VERSION_ID < 50399
 	zval *tmp;
+#endif
 
 	intern = (xydiff_object *) emalloc(sizeof(xydiff_object));
 	memset(intern, 0, sizeof(xydiff_object));
 	
 	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
+#if PHP_VERSION_ID < 50399
 	zend_hash_copy(intern->std.properties, &class_type->default_properties, (copy_ctor_func_t) zval_add_ref, (void *) &tmp, sizeof(zval *));
+#else
+	object_properties_init(&intern->std, class_type);
+#endif
 	
 	retval.handle = zend_objects_store_put(intern,
 										   (zend_objects_store_dtor_t)zend_objects_destroy_object,
@@ -128,7 +134,9 @@ ZEND_METHOD(xydiff, createDelta) {
 	XID_DOMDocument *xiddoc1, *xiddoc2, *deltaDoc = NULL;
 	xmlDocPtr libxml_delta_doc;
 	char *xidmap = NULL;
+#if PHP_VERSION_ID < 50307
 	zval *rv = NULL;
+#endif
 	int ret;
 
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Ooo", &id, xydiff_class_entry, &doc1, &doc2) == FAILURE) {
@@ -198,7 +206,10 @@ ZEND_METHOD(xydiff, createDelta) {
 		delete domDeltaCreate;
 		XMLString::release(&xidmap);
 
+#if PHP_VERSION_ID < 50307
 		DOM_RET_OBJ(rv, (xmlNodePtr) libxml_delta_doc, &ret, NULL);
-
+#else
+		DOM_RET_OBJ((xmlNodePtr) libxml_delta_doc, &ret, NULL);
+#endif
 	}
 }

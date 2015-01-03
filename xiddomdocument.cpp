@@ -83,7 +83,9 @@ void register_xiddomdocument(TSRMLS_D)
 
 static dom_object* xiddomdocument_set_class(zend_class_entry *class_type, zend_bool hash_copy TSRMLS_DC) /* {{{ */
 {
+#if PHP_VERSION_ID < 50399
 	zval *tmp;
+#endif
 	dom_object *intern;
 	intern = (dom_object *) emalloc(sizeof(dom_object));
 	intern->ptr = NULL;
@@ -91,7 +93,11 @@ static dom_object* xiddomdocument_set_class(zend_class_entry *class_type, zend_b
 	intern->document = NULL;
 	zend_object_std_init(&intern->std, class_type TSRMLS_CC);
 	if (hash_copy) {
+#if PHP_VERSION_ID < 50399
 		zend_hash_copy(intern->std.properties, &class_type->default_properties, (copy_ctor_func_t) zval_add_ref, (void *) &tmp, sizeof(zval *));
+#else
+		object_properties_init(&intern->std, class_type);
+#endif
 	}
 	return intern;
 }
@@ -386,7 +392,10 @@ int xiddomdocument_set_xidmap(php_libxml_node_object *libxml_object, char *xidma
 
 ZEND_METHOD(xiddomdocument, generateXidTaggedDocument)
 {
-	zval *id, *rv;
+	zval *id;
+#if PHP_VERSION_ID < 50307
+	zval *rv;
+#endif
 	php_libxml_node_object *intern;
 	XID_DOMDocument *xiddoc;
 	int ret;
@@ -416,7 +425,11 @@ ZEND_METHOD(xiddomdocument, generateXidTaggedDocument)
 		if (!libxmldoc) {
 			RETURN_FALSE;
 		} else {
+#if PHP_VERSION_ID < 50307
 			DOM_RET_OBJ(rv, (xmlNodePtr) libxmldoc, &ret, NULL);
+#else
+			DOM_RET_OBJ((xmlNodePtr) libxmldoc, &ret, NULL);
+#endif
 		}
 	}
 	catch( const DOMException& e ) {
